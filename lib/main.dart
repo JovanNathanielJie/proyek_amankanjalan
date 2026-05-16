@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:proyek_amankanjalan/screens/loading_screen.dart';
-import 'package:proyek_amankanjalan/screens/home_screen.dart';
+import 'package:proyek_amankanjalan/screens/login_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,6 +12,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Amankan Jalan',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -45,6 +46,6 @@ class _SplashWrapperState extends State<SplashWrapper> {
     if (_isLoading) {
       return LoadingScreen(onLoadingComplete: _onLoadingComplete);
     }
-    return const HomeScreen();
+    return const LoginScreen();
   }
 }
