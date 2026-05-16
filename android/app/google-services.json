@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "211629639790",
+    "firebase_url": "https://proyek-amankanjalan-default-rtdb.firebaseio.com",
+    "project_id": "proyek-amankanjalan",
+    "storage_bucket": "proyek-amankanjalan.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:211629639790:android:417af69a4d13acaa9ffe7f",
+        "android_client_info": {
+          "package_name": "com.example.proyek_amankanjalan"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAVbodiKRScuqPygQ679ug8VU91xRNMg9c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
