@@ -1,83 +1,465 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'add_report_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({Key? key}) : super(key: key);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  int _currentIndex = 0;
+  String _selectedUrgency = 'Semua';
+  String _selectedCategory = 'Semua Kategori';
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Amankan Jalan'),
-        backgroundColor: const Color(0xFF1E3A8A),
-        elevation: 0,
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 16),
+              _buildSummaryCards(), // Sekarang memanggil data dinamis
+              const SizedBox(height: 16),
+              _buildFilterChips(),
+              const SizedBox(height: 16),
+              _buildRecentReportsHeader(),
+              _buildReportList(),
+            ],
+          ),
+        ),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddReportScreen()),
+          );
+        },
+        backgroundColor: const Color(0xFF2A23C2),
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          // Hanya mengubah tab tanpa memunculkan notifikasi
+          setState(() => _currentIndex = index);
+        },
+        selectedItemColor: const Color(0xFF2A23C2),
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Beranda'),
+          BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: 'Peta'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profil'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        color: Color(0xFF1E1E96),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text(
+                    'Selamat Datang',
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  Text(
+                    'AmankanJalan',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              // Tombol tambah di header atas SUDAH DIHILANGKAN sesuai permintaan
+            ],
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const TextField(
+              decoration: InputDecoration(
+                icon: Icon(Icons.search, color: Colors.grey),
+                hintText: 'Cari laporan...',
+                border: InputBorder.none,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Bagian ini dirombak agar menghitung jumlah data asli dari Firebase
+  Widget _buildSummaryCards() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('reports').snapshots(),
+      builder: (context, snapshot) {
+        int totalLaporan = 0;
+        int totalDarurat = 0;
+        int totalDitangani = 0;
+
+        if (snapshot.hasData) {
+          totalLaporan = snapshot.data!.docs.length; // Total semua inputan user
+          
+          for (var doc in snapshot.data!.docs) {
+            var data = doc.data() as Map<String, dynamic>;
+            // Menghitung yang tingkat urgensinya 'DARURAT'
+            if (data['urgency'] == 'DARURAT') {
+              totalDarurat++;
+            }
+            // Menghitung status Ditangani (jika field 'status' ada di kemudian hari)
+            if (data['status'] == 'Ditangani') {
+              totalDitangani++;
+            }
+          }
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildStatCard('$totalLaporan', 'Total Laporan', const Color(0xFFE6E6FA), Icons.warning_amber_rounded, const Color(0xFF5C5CFF)),
+              _buildStatCard('$totalDarurat', 'Darurat', const Color(0xFFFFEBEB), Icons.error_outline, Colors.red),
+              _buildStatCard('$totalDitangani', 'Ditangani', const Color(0xFFE8F8F5), Icons.check_circle_outline, Colors.teal),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatCard(String count, String label, Color bgColor, IconData icon, Color iconColor) {
+    return Expanded(
+      child: InkWell(
+        onTap: () {}, // Dikosongkan agar tidak ada notifikasi
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: iconColor),
+              const SizedBox(height: 4),
+              Text(count, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildChip('Semua', _selectedUrgency == 'Semua', true),
+                _buildChip('Darurat', _selectedUrgency == 'Darurat', true),
+                _buildChip('Sedang', _selectedUrgency == 'Sedang', true),
+                _buildChip('Rendah', _selectedUrgency == 'Rendah', true),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildChip('Semua Kategori', _selectedCategory == 'Semua Kategori', false),
+                _buildChip('Lampu Mati', _selectedCategory == 'Lampu Mati', false, icon: Icons.lightbulb_outline),
+                _buildChip('Area Gelap', _selectedCategory == 'Area Gelap', false, icon: Icons.dark_mode_outlined),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChip(String label, bool isSelected, bool isUrgency, {IconData? icon}) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        showCheckmark: false, // Menghilangkan centang bawaan
+        label: Row(
           children: [
-            const Icon(
-              Icons.location_on,
-              size: 80,
-              color: Color(0xFF1E3A8A),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Selamat Datang di Amankan Jalan',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E3A8A),
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 30),
-              child: Text(
-                'Bantu pemetakan titik-titik tidak aman di sekitarmu untuk menciptakan jalan yang lebih aman bagi semua',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                ),
-              ),
-            ),
-            const SizedBox(height: 40),
-            ElevatedButton.icon(
-              onPressed: () {
-                // TODO: Navigate to reporting screen
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Buat Laporan'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1E3A8A),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 40,
-                  vertical: 15,
-                ),
-              ),
-            ),
-            const SizedBox(height: 15),
-            OutlinedButton.icon(
-              onPressed: () {
-                // TODO: Navigate to reports feed
-              },
-              icon: const Icon(Icons.list),
-              label: const Text('Lihat Laporan'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF1E3A8A),
-                side: const BorderSide(color: Color(0xFF1E3A8A)),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 40,
-                  vertical: 15,
-                ),
-              ),
-            ),
+            if (icon != null) ...[
+              Icon(icon, size: 16, color: isSelected ? Colors.white : Colors.orange),
+              const SizedBox(width: 4),
+            ],
+            Text(label),
           ],
+        ),
+        selected: isSelected,
+        onSelected: (bool selected) {
+          setState(() {
+            if (isUrgency) {
+              _selectedUrgency = label;
+            } else {
+              _selectedCategory = label;
+            }
+          });
+          // Tidak ada pemanggilan SnackBar di sini, jadi dijamin bar abu-abu hilang
+        },
+        selectedColor: const Color(0xFF2A23C2),
+        labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black87),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: isSelected ? const Color(0xFF2A23C2) : Colors.grey.shade300),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentReportsHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: const [
+          Text('Laporan Terkini', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text('Real-time', style: TextStyle(color: Colors.grey, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReportList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('reports')
+          .orderBy('timestamp', descending: true) 
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.all(32.0),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Center(child: Text('Terjadi kesalahan memuat data.')),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.all(32.0),
+            child: Center(
+              child: Text(
+                'Belum ada laporan.\nKlik tombol + di bawah untuk menambahkan.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          itemCount: snapshot.data!.docs.length,
+          itemBuilder: (context, index) {
+            var doc = snapshot.data!.docs[index];
+            var data = doc.data() as Map<String, dynamic>;
+
+            Color catBgColor = Colors.blue.shade100;
+            Color catTextColor = Colors.blue.shade800;
+            if (data['category'] == 'Rawan Kecelakaan') {
+              catBgColor = Colors.red.shade100;
+              catTextColor = Colors.red;
+            } else if (data['category'] == 'Area Gelap') {
+              catBgColor = Colors.purple.shade100;
+              catTextColor = Colors.purple;
+            } else if (data['category'] == 'Lampu Mati') {
+              catBgColor = Colors.orange.shade100;
+              catTextColor = Colors.orange.shade900;
+            }
+
+            return _buildReportCard(
+              docId: doc.id,
+              rank: '#${index + 1}',
+              category: data['category'] ?? 'Umum',
+              urgency: data['urgency'] ?? 'RENDAH',
+              title: data['title'] ?? '',
+              location: data['location'] ?? '',
+              description: data['description'] ?? '',
+              upvotes: data['upvotes'] ?? 0,
+              timeAgo: 'Baru saja', 
+              categoryColor: catBgColor,
+              categoryTextColor: catTextColor,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildReportCard({
+    required String docId,
+    required String rank,
+    required String category,
+    required String urgency,
+    required String title,
+    required String location,
+    required String description,
+    required int upvotes,
+    required String timeAgo,
+    required Color categoryColor,
+    required Color categoryTextColor,
+  }) {
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: InkWell(
+        onTap: () {}, // Dikosongkan agar tidak ada pop-up
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: categoryColor,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(category, style: TextStyle(color: categoryTextColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: urgency == 'DARURAT' ? Colors.red : Colors.orange,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(urgency, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2A23C2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(rank, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.location_on_outlined, size: 14, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Text(location, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                description,
+                style: const TextStyle(color: Colors.black87, fontSize: 13),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text('Aktif • $timeAgo', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    ],
+                  ),
+                  
+                  InkWell(
+                    onTap: () {
+                      // Fungsi upvote bekerja murni ke database tanpa memunculkan snackbar di layar
+                      FirebaseFirestore.instance.collection('reports').doc(docId).update({
+                        'upvotes': FieldValue.increment(1)
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE6E6FA),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.arrow_upward, size: 14, color: Color(0xFF2A23C2)),
+                          const SizedBox(width: 4),
+                          Text('$upvotes', style: const TextStyle(color: Color(0xFF2A23C2), fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            ],
+          ),
         ),
       ),
     );
