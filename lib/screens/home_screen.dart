@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'add_report_screen.dart';
+import 'report_detail_screen.dart'; 
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -13,6 +14,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   String _selectedUrgency = 'Semua';
   String _selectedCategory = 'Semua Kategori';
+  String _searchQuery = ''; // State baru untuk menyimpan teks pencarian
 
   @override
   Widget build(BuildContext context) {
@@ -25,12 +27,12 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               _buildHeader(),
               const SizedBox(height: 16),
-              _buildSummaryCards(), // Sekarang memanggil data dinamis
+              _buildSummaryCards(),
               const SizedBox(height: 16),
               _buildFilterChips(),
               const SizedBox(height: 16),
               _buildRecentReportsHeader(),
-              _buildReportList(),
+              _buildReportList(), 
             ],
           ),
         ),
@@ -48,7 +50,6 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
-          // Hanya mengubah tab tanpa memunculkan notifikasi
           setState(() => _currentIndex = index);
         },
         selectedItemColor: const Color(0xFF2A23C2),
@@ -91,7 +92,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-              // Tombol tambah di header atas SUDAH DIHILANGKAN sesuai permintaan
             ],
           ),
           const SizedBox(height: 20),
@@ -101,8 +101,14 @@ class _HomeScreenState extends State<HomeScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const TextField(
-              decoration: InputDecoration(
+            child: TextField(
+              // Fungsi ini dipanggil setiap kali teks diubah oleh pengguna
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.toLowerCase(); // Ubah ke huruf kecil agar pencarian tidak case-sensitive
+                });
+              },
+              decoration: const InputDecoration(
                 icon: Icon(Icons.search, color: Colors.grey),
                 hintText: 'Cari laporan...',
                 border: InputBorder.none,
@@ -114,7 +120,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Bagian ini dirombak agar menghitung jumlah data asli dari Firebase
   Widget _buildSummaryCards() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('reports').snapshots(),
@@ -124,15 +129,13 @@ class _HomeScreenState extends State<HomeScreen> {
         int totalDitangani = 0;
 
         if (snapshot.hasData) {
-          totalLaporan = snapshot.data!.docs.length; // Total semua inputan user
+          totalLaporan = snapshot.data!.docs.length;
           
           for (var doc in snapshot.data!.docs) {
             var data = doc.data() as Map<String, dynamic>;
-            // Menghitung yang tingkat urgensinya 'DARURAT'
             if (data['urgency'] == 'DARURAT') {
               totalDarurat++;
             }
-            // Menghitung status Ditangani (jika field 'status' ada di kemudian hari)
             if (data['status'] == 'Ditangani') {
               totalDitangani++;
             }
@@ -157,7 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildStatCard(String count, String label, Color bgColor, IconData icon, Color iconColor) {
     return Expanded(
       child: InkWell(
-        onTap: () {}, // Dikosongkan agar tidak ada notifikasi
+        onTap: () {},
         borderRadius: BorderRadius.circular(12),
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -203,6 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildChip('Semua Kategori', _selectedCategory == 'Semua Kategori', false),
                 _buildChip('Lampu Mati', _selectedCategory == 'Lampu Mati', false, icon: Icons.lightbulb_outline),
                 _buildChip('Area Gelap', _selectedCategory == 'Area Gelap', false, icon: Icons.dark_mode_outlined),
+                _buildChip('Rawan Kecelakaan', _selectedCategory == 'Rawan Kecelakaan', false, icon: Icons.warning_amber_rounded),
               ],
             ),
           ),
@@ -215,7 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: ChoiceChip(
-        showCheckmark: false, // Menghilangkan centang bawaan
+        showCheckmark: false,
         label: Row(
           children: [
             if (icon != null) ...[
@@ -234,7 +238,6 @@ class _HomeScreenState extends State<HomeScreen> {
               _selectedCategory = label;
             }
           });
-          // Tidak ada pemanggilan SnackBar di sini, jadi dijamin bar abu-abu hilang
         },
         selectedColor: const Color(0xFF2A23C2),
         labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black87),
@@ -294,17 +297,66 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
 
+        var allDocs = snapshot.data!.docs;
+        
+        var filteredDocs = allDocs.where((doc) {
+          var data = doc.data() as Map<String, dynamic>;
+          
+          String urgencyDb = data['urgency'] ?? '';
+          String categoryDb = data['category'] ?? '';
+          
+          // Ambil judul dan lokasi untuk dicocokkan dengan teks pencarian
+          String titleDb = (data['title'] ?? '').toLowerCase();
+          String locationDb = (data['location'] ?? '').toLowerCase();
+
+          // 1. Cek apakah ada teks pencarian
+          bool matchSearch = _searchQuery.isEmpty || 
+                             titleDb.contains(_searchQuery) || 
+                             locationDb.contains(_searchQuery);
+
+          // 2. Cek filter urgensi
+          bool matchUrgency = _selectedUrgency == 'Semua' || 
+                              urgencyDb.toUpperCase() == _selectedUrgency.toUpperCase();
+
+          // 3. Cek filter kategori
+          bool matchCategory = _selectedCategory == 'Semua Kategori' || 
+                               categoryDb == _selectedCategory;
+
+          // Data akan ditampilkan jika memenuhi KETIGA syarat filter ini
+          return matchSearch && matchUrgency && matchCategory;
+        }).toList();
+
+        if (filteredDocs.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Center(
+              child: Column(
+                children: const [
+                  Icon(Icons.search_off, size: 48, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    'Tidak ada laporan yang sesuai pencarian atau filter.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
         return ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          itemCount: snapshot.data!.docs.length,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: filteredDocs.length,
           itemBuilder: (context, index) {
-            var doc = snapshot.data!.docs[index];
+            var doc = filteredDocs[index];
             var data = doc.data() as Map<String, dynamic>;
 
             Color catBgColor = Colors.blue.shade100;
             Color catTextColor = Colors.blue.shade800;
+            
             if (data['category'] == 'Rawan Kecelakaan') {
               catBgColor = Colors.red.shade100;
               catTextColor = Colors.red;
@@ -317,6 +369,7 @@ class _HomeScreenState extends State<HomeScreen> {
             }
 
             return _buildReportCard(
+              context: context,
               docId: doc.id,
               rank: '#${index + 1}',
               category: data['category'] ?? 'Umum',
@@ -336,6 +389,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildReportCard({
+    required BuildContext context,
     required String docId,
     required String rank,
     required String category,
@@ -356,7 +410,14 @@ class _HomeScreenState extends State<HomeScreen> {
         side: BorderSide(color: Colors.grey.shade200),
       ),
       child: InkWell(
-        onTap: () {}, // Dikosongkan agar tidak ada pop-up
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ReportDetailScreen(docId: docId),
+            ),
+          );
+        },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -380,7 +441,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: urgency == 'DARURAT' ? Colors.red : Colors.orange,
+                          color: urgency.toUpperCase() == 'DARURAT' ? Colors.red : Colors.orange,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(urgency, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
@@ -432,10 +493,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text('Aktif • $timeAgo', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                     ],
                   ),
-                  
+                  // Tombol Upvote di Card Home Screen (Tetap dibiarkan jika ingin bisa upvote langsung dari depan)
                   InkWell(
                     onTap: () {
-                      // Fungsi upvote bekerja murni ke database tanpa memunculkan snackbar di layar
                       FirebaseFirestore.instance.collection('reports').doc(docId).update({
                         'upvotes': FieldValue.increment(1)
                       });
