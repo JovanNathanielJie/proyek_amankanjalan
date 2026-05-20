@@ -1,8 +1,15 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:proyek_amankanjalan/screens/loading_screen.dart';
+import 'package:proyek_amankanjalan/firebase_options.dart';
+import 'package:proyek_amankanjalan/screens/splash_screen.dart';
 import 'package:proyek_amankanjalan/screens/login_screen.dart';
+import 'package:proyek_amankanjalan/screens/register_screen.dart';
 
-void main() {
+void main() async { 
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MyApp());
 }
 
@@ -20,7 +27,7 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const SplashWrapper(),
+      home: const SplashWrapper(), 
     );
   }
 }
@@ -44,7 +51,7 @@ class _SplashWrapperState extends State<SplashWrapper> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return LoadingScreen(onLoadingComplete: _onLoadingComplete);
+      return SplashScreen(onLoadingComplete: _onLoadingComplete);
     }
     return const LoginScreen();
   }

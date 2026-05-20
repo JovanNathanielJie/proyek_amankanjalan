@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 
-class LoadingScreen extends StatefulWidget {
+class SplashScreen extends StatefulWidget {
   final VoidCallback onLoadingComplete;
 
-  const LoadingScreen({
+  const SplashScreen({
     super.key,
     required this.onLoadingComplete,
   });
 
   @override
-  State<LoadingScreen> createState() => _LoadingScreenState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _LoadingScreenState extends State<LoadingScreen>
+class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -65,8 +65,8 @@ class _LoadingScreenState extends State<LoadingScreen>
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1E3A8A), // Deep blue
-              Color(0xFF2563EB), // Blue
+              Color(0xFF223199), 
+              Color(0xFF2563EB), 
             ],
           ),
         ),
@@ -74,70 +74,30 @@ class _LoadingScreenState extends State<LoadingScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Logo dengan animasi scale
+
               ScaleTransition(
                 scale: _scaleAnimation,
-                child: Container(
-                  width: 150,
-                  height: 150,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.1),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.white.withOpacity(0.2),
-                        blurRadius: 20,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(15),
-                      child: Image.asset(
-                        'assets/images/logo_amankanjalan.png',
-                        width: 120,
-                        height: 120,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          // Fallback jika logo belum tersedia
-                          return Container(
-                            width: 120,
-                            height: 120,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            child: const Icon(
-                              Icons.shield,
-                              size: 80,
-                              color: Color(0xFF1E3A8A),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
+                child: Image.asset(
+                  'assets/images/LogoAmankanJalanFIX.png',
+                  width: 200, 
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+    
+                    return const Icon(
+                      Icons.shield,
+                      size: 100, 
+                      color: Colors.white,
+                    );
+                  },
                 ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 10),
 
               // Teks aplikasi dengan animasi opacity
               FadeTransition(
                 opacity: _opacityAnimation,
                 child: const Column(
                   children: [
-                    Text(
-                      'AMANKAN JALAN',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 2.5,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 12),
                     Text(
                       'Jalan Aman, Perjalanan Nyaman',
                       style: TextStyle(
@@ -160,7 +120,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                   height: 50,
                   child: CircularProgressIndicator(
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      Colors.white.withOpacity(0.8),
+                      Colors.white.withOpacity(0.8), 
                     ),
                     strokeWidth: 4,
                   ),
