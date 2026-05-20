@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'add_report_screen.dart';
-import 'report_detail_screen.dart'; 
+import 'report_detail_screen.dart';
+import 'profile_screen.dart'; // Import halaman profil
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -14,7 +15,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   String _selectedUrgency = 'Semua';
   String _selectedCategory = 'Semua Kategori';
-  String _searchQuery = ''; // State baru untuk menyimpan teks pencarian
+  String _searchQuery = ''; // State untuk pencarian
 
   @override
   Widget build(BuildContext context) {
@@ -47,10 +48,19 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: const Color(0xFF2A23C2),
         child: const Icon(Icons.add, color: Colors.white),
       ),
+      // --- BOTTOM NAVIGATION BAR YANG SUDAH DIPERBARUI ---
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
-          setState(() => _currentIndex = index);
+          if (index == 2) {
+            // Pindah ke halaman Profil saat ikon profil diklik
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const ProfileScreen()),
+            );
+          } else {
+            setState(() => _currentIndex = index);
+          }
         },
         selectedItemColor: const Color(0xFF2A23C2),
         unselectedItemColor: Colors.grey,
@@ -102,10 +112,9 @@ class _HomeScreenState extends State<HomeScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: TextField(
-              // Fungsi ini dipanggil setiap kali teks diubah oleh pengguna
               onChanged: (value) {
                 setState(() {
-                  _searchQuery = value.toLowerCase(); // Ubah ke huruf kecil agar pencarian tidak case-sensitive
+                  _searchQuery = value.toLowerCase(); 
                 });
               },
               decoration: const InputDecoration(
@@ -305,24 +314,19 @@ class _HomeScreenState extends State<HomeScreen> {
           String urgencyDb = data['urgency'] ?? '';
           String categoryDb = data['category'] ?? '';
           
-          // Ambil judul dan lokasi untuk dicocokkan dengan teks pencarian
           String titleDb = (data['title'] ?? '').toLowerCase();
           String locationDb = (data['location'] ?? '').toLowerCase();
 
-          // 1. Cek apakah ada teks pencarian
           bool matchSearch = _searchQuery.isEmpty || 
                              titleDb.contains(_searchQuery) || 
                              locationDb.contains(_searchQuery);
 
-          // 2. Cek filter urgensi
           bool matchUrgency = _selectedUrgency == 'Semua' || 
                               urgencyDb.toUpperCase() == _selectedUrgency.toUpperCase();
 
-          // 3. Cek filter kategori
           bool matchCategory = _selectedCategory == 'Semua Kategori' || 
                                categoryDb == _selectedCategory;
 
-          // Data akan ditampilkan jika memenuhi KETIGA syarat filter ini
           return matchSearch && matchUrgency && matchCategory;
         }).toList();
 
@@ -493,7 +497,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text('Aktif • $timeAgo', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                     ],
                   ),
-                  // Tombol Upvote di Card Home Screen (Tetap dibiarkan jika ingin bisa upvote langsung dari depan)
                   InkWell(
                     onTap: () {
                       FirebaseFirestore.instance.collection('reports').doc(docId).update({

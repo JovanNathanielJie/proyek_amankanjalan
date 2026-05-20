@@ -11,8 +11,26 @@ class ReportDetailScreen extends StatefulWidget {
 }
 
 class _ReportDetailScreenState extends State<ReportDetailScreen> {
-  // SIMULASI USER ID (Nanti diganti dengan FirebaseAuth.instance.currentUser!.uid)
-  final String currentUserId = "user_123"; 
+  // Simulasi ID User (Nanti diganti dengan FirebaseAuth.instance.currentUser!.uid)
+  final String currentUserId = "user_123";
+
+  // Fungsi untuk mengubah Timestamp menjadi teks "waktu berlalu" (contoh: "2 jam lalu")
+  String _getTimeAgo(Timestamp? timestamp) {
+    if (timestamp == null) return 'Baru saja';
+    final DateTime now = DateTime.now();
+    final DateTime reportedTime = timestamp.toDate();
+    final Duration diff = now.difference(reportedTime);
+
+    if (diff.inDays > 0) {
+      return '${diff.inDays} hari lalu';
+    } else if (diff.inHours > 0) {
+      return '${diff.inHours} jam lalu';
+    } else if (diff.inMinutes > 0) {
+      return '${diff.inMinutes} menit lalu';
+    } else {
+      return 'Baru saja';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,14 +55,18 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
           String location = data['location'] ?? 'Lokasi tidak diketahui';
           String description = data['description'] ?? 'Tidak ada deskripsi.';
           int upvotes = data['upvotes'] ?? 0;
+          String status = data['status'] ?? 'Aktif';
           
-          // Mengambil array supportedBy dari Firestore (jika belum ada, jadikan list kosong)
+          // Mengambil foto, nama pelapor, dan waktu dari Firestore
+          String? imageUrl = data['imageUrl'];
+          String reporterName = data['reporterName'] ?? 'Anonim';
+          Timestamp? timestamp = data['timestamp'] as Timestamp?;
+          String timeAgo = _getTimeAgo(timestamp);
+
+          // Cek dukungan
           List<dynamic> supportedBy = data['supportedBy'] ?? [];
-          
-          // Cek apakah user saat ini ada di dalam array tersebut
           bool isSupportedByMe = supportedBy.contains(currentUserId);
           
-          String reporterName = data['reporterName'] ?? 'Siti R.';
           String coordinates = data['coordinates'] ?? '-6.229700, 106.829500';
 
           return SafeArea(
@@ -57,7 +79,14 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildStatusCard(reporterName),
+                        // Menampilkan foto jika ada URL gambar dari Firestore
+                        if (imageUrl != null && imageUrl.isNotEmpty) ...[
+                          _buildPhotoCard(imageUrl),
+                          const SizedBox(height: 16),
+                        ],
+                        
+                        // Melempar nama dinamis, waktu dinamis, dan status
+                        _buildStatusCard(reporterName, timeAgo, status),
                         const SizedBox(height: 16),
                         _buildDescriptionCard(description),
                         const SizedBox(height: 16),
@@ -65,8 +94,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                         const SizedBox(height: 16),
                         _buildSupportCard(upvotes),
                         const SizedBox(height: 24),
-                        // Kirim data upvotes dan status dukungan ke tombol
-                        _buildBottomActions(upvotes, isSupportedByMe), 
+                        _buildBottomActions(upvotes, isSupportedByMe),
                       ],
                     ),
                   ),
@@ -147,7 +175,38 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     );
   }
 
-  Widget _buildStatusCard(String reporterName) {
+  // --- WIDGET UNTUK MENAMPILKAN FOTO ---
+  Widget _buildPhotoCard(String imageUrl) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.network(
+        imageUrl,
+        height: 200,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            height: 200,
+            color: Colors.grey.shade300,
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            height: 200,
+            color: Colors.grey.shade300,
+            child: const Center(
+              child: Icon(Icons.broken_image, color: Colors.grey, size: 50),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // Card status sekarang menerima variabel dinamis
+  Widget _buildStatusCard(String reporterName, String timeAgo, String status) {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -156,11 +215,11 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _buildStatusItem('Status', 'Aktif', isStatus: true),
+            _buildStatusItem('Status', status, isStatus: true),
             Container(width: 1, height: 40, color: Colors.grey.shade300),
-            _buildStatusItem('Dilaporkan', '5 jam lalu'),
+            _buildStatusItem('Dilaporkan', timeAgo), // Waktu dinamis
             Container(width: 1, height: 40, color: Colors.grey.shade300),
-            _buildStatusItem('Pelapor', reporterName),
+            _buildStatusItem('Pelapor', reporterName), // Nama dinamis
           ],
         ),
       ),
@@ -168,6 +227,11 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   }
 
   Widget _buildStatusItem(String label, String value, {bool isStatus = false}) {
+    // Menyesuaikan warna indikator berdasarkan teks status
+    Color statusColor = Colors.red;
+    if (value.toLowerCase() == 'ditangani') statusColor = Colors.teal;
+    if (value.toLowerCase() == 'sedang proses') statusColor = Colors.orange;
+
     return Column(
       children: [
         Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
@@ -179,7 +243,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
               Container(
                 width: 6,
                 height: 6,
-                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
               ),
               const SizedBox(width: 4),
             ],
@@ -187,7 +251,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
               value,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: isStatus ? Colors.red : Colors.black87,
+                color: isStatus ? statusColor : Colors.black87,
               ),
             ),
           ],
@@ -281,25 +345,19 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     );
   }
 
-  // BAGIAN YANG BERUBAH: Fungsi aksi tombol
   Widget _buildBottomActions(int upvotes, bool isSupportedByMe) {
     return Row(
       children: [
-        // Tombol Dukung / Batal Dukung
         Expanded(
           child: ElevatedButton(
             onPressed: () {
-              // Referensi ke dokumen di Firestore
               var docRef = FirebaseFirestore.instance.collection('reports').doc(widget.docId);
-
               if (isSupportedByMe) {
-                // JIKA SUDAH DIDUKUNG: Kurangi upvotes & hapus ID User dari array
                 docRef.update({
                   'upvotes': FieldValue.increment(-1),
                   'supportedBy': FieldValue.arrayRemove([currentUserId])
                 });
               } else {
-                // JIKA BELUM DIDUKUNG: Tambah upvotes & masukkan ID User ke array
                 docRef.update({
                   'upvotes': FieldValue.increment(1),
                   'supportedBy': FieldValue.arrayUnion([currentUserId])
@@ -328,7 +386,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
           ),
         ),
         const SizedBox(width: 12),
-        // Tombol Share di sebelah kanan
         Container(
           height: 54, 
           width: 54,
@@ -337,9 +394,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: IconButton(
-            onPressed: () {
-              // Logika share
-            },
+            onPressed: () {},
             icon: const Icon(Icons.share_outlined, color: Colors.black87),
           ),
         ),
