@@ -25,8 +25,8 @@ class _AddReportScreenState extends State<AddReportScreen> {
   
   bool _isLoading = false;
 
-  final String currentUserId = "user_123";
-  final String currentUserName = "Rissa";
+  String currentUserId = "";
+  String currentUserName = "Loading...";
 
   @override
   void dispose() {

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'dart:math';
-import 'home_screen.dart'; 
+
 import 'edit_profile_screen.dart';
-import 'login_screen.dart'; // Import halaman login baru
+import 'login_screen.dart'; 
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -13,15 +15,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  // Simulasi ID User
-  final String currentUserId = "user_123";
-  final String currentUserName = "Rissa";
-  
-  // Index untuk BottomNavigationBar (2 = Profil)
-  int _currentIndex = 2; 
-
-  // State melacak status login
-  bool _isLoggedIn = true;
+  // Mengambil instance user yang sedang login dari Firebase Auth
+  final User? currentUser = FirebaseAuth.instance.currentUser;
 
   // --- FUNGSI UNTUK MENAMPILKAN DIALOG KONFIRMASI KELUAR ---
   Future<bool?> _showLogoutDialog() {
@@ -98,114 +93,143 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Jika user belum login, tampilkan tombol untuk ke halaman login
+    if (currentUser == null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF0F0F5),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.account_circle, size: 80, color: Colors.grey),
+              const SizedBox(height: 16),
+              const Text('Anda belum masuk akun', style: TextStyle(fontSize: 18, color: Colors.grey)),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+                },
+                child: const Text('Login Sekarang'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF0F0F5),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('reports').snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      // 1. STREAM BUILDER PERTAMA: MENDENGARKAN DATA USER DARI REALTIME DATABASE SECARA OTOMATIS
+      body: StreamBuilder<DatabaseEvent>(
+        stream: FirebaseDatabase.instance.ref('users/${currentUser!.uid}').onValue,
+        builder: (context, userSnapshot) {
+          if (userSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          List<DocumentSnapshot> myReports = [];
-          if (snapshot.hasData) {
-            myReports = snapshot.data!.docs.where((doc) {
-              var data = doc.data() as Map<String, dynamic>;
-              return data['reporterId'] == currentUserId || data['reporterName'] == currentUserName;
-            }).toList();
+          // Ekstrak data user dari Realtime Database
+          Map<dynamic, dynamic>? userData;
+          if (userSnapshot.hasData && userSnapshot.data!.snapshot.value != null) {
+            userData = userSnapshot.data!.snapshot.value as Map<dynamic, dynamic>;
           }
 
-          myReports.sort((a, b) {
-            var dataA = a.data() as Map<String, dynamic>;
-            var dataB = b.data() as Map<String, dynamic>;
-            Timestamp timeA = dataA['timestamp'] ?? Timestamp.now();
-            Timestamp timeB = dataB['timestamp'] ?? Timestamp.now();
-            return timeB.compareTo(timeA);
-          });
+          // Nilai default jika data kosong (Fallback)
+          String fullName = userData?['fullName'] ?? 'Pengguna';
+          String username = userData?['username'] ?? 'username';
+          String phoneNumber = userData?['phoneNumber'] ?? '-';
 
-          // Kalkulasi Statistik
-          int totalLaporan = myReports.length;
-          int totalUpvoteDiterima = 0;
-          int totalDitangani = 0;
-          int totalAktif = 0;
+          // 2. STREAM BUILDER KEDUA: MENDENGARKAN DATA LAPORAN FIRESTORE
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('reports').snapshots(),
+            builder: (context, reportSnapshot) {
+              if (reportSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          bool hasTrending = false;
-          bool hasTopReporter = false;
+              List<DocumentSnapshot> myReports = [];
+              if (reportSnapshot.hasData) {
+                myReports = reportSnapshot.data!.docs.where((doc) {
+                  var data = doc.data() as Map<String, dynamic>;
+                  // Filter laporan berdasarkan UID user yang sedang login
+                  return data['reporterId'] == currentUser!.uid;
+                }).toList();
+              }
 
-          for (var doc in myReports) {
-            var data = doc.data() as Map<String, dynamic>;
-            int upvotes = data['upvotes'] ?? 0;
-            totalUpvoteDiterima += upvotes;
+              myReports.sort((a, b) {
+                var dataA = a.data() as Map<String, dynamic>;
+                var dataB = b.data() as Map<String, dynamic>;
+                Timestamp timeA = dataA['timestamp'] ?? Timestamp.now();
+                Timestamp timeB = dataB['timestamp'] ?? Timestamp.now();
+                return timeB.compareTo(timeA);
+              });
 
-            if (data['status'] == 'Ditangani') {
-              totalDitangani++;
-            } else {
-              totalAktif++; 
-            }
+              // Kalkulasi Statistik
+              int totalLaporan = myReports.length;
+              int totalUpvoteDiterima = 0;
+              int totalDitangani = 0;
+              int totalAktif = 0;
+              bool hasTrending = false;
+              bool hasTopReporter = false;
 
-            if (upvotes > 50) hasTrending = true;
-            if (upvotes >= 25) hasTopReporter = true;
-          }
+              for (var doc in myReports) {
+                var data = doc.data() as Map<String, dynamic>;
+                int upvotes = data['upvotes'] ?? 0;
+                totalUpvoteDiterima += upvotes;
 
-          bool badgePelaporAktif = totalLaporan >= 5;
-          bool badgeTrending = hasTrending;
-          bool badgeGuardian = totalLaporan >= 1; 
-          bool badgeTopReporter = hasTopReporter;
+                if (data['status'] == 'Ditangani') {
+                  totalDitangani++;
+                } else {
+                  totalAktif++; 
+                }
 
-          return SafeArea(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  _buildHeader(context),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const SizedBox(height: 16),
-                        _buildStatsGrid(totalLaporan, totalUpvoteDiterima, totalDitangani, totalAktif),
-                        const SizedBox(height: 16),
-                        _buildAchievements(badgePelaporAktif, badgeTrending, badgeGuardian, badgeTopReporter),
-                        const SizedBox(height: 16),
-                        _buildRecentReports(myReports),
-                        const SizedBox(height: 16),
-                        _buildAccountSection(context), 
-                        const SizedBox(height: 16),
-                        _buildEmergencyInfo(),
-                        const SizedBox(height: 32),
-                      ],
-                    ),
+                if (upvotes > 50) hasTrending = true;
+                if (upvotes >= 25) hasTopReporter = true;
+              }
+
+              bool badgePelaporAktif = totalLaporan >= 5;
+              bool badgeTrending = hasTrending;
+              bool badgeGuardian = totalLaporan >= 1; 
+              bool badgeTopReporter = hasTopReporter;
+
+              return SafeArea(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      // Mengirimkan data dinamis ke komponen Header
+                      _buildHeader(context, fullName, username, phoneNumber),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: 16),
+                            _buildStatsGrid(totalLaporan, totalUpvoteDiterima, totalDitangani, totalAktif),
+                            const SizedBox(height: 16),
+                            _buildAchievements(badgePelaporAktif, badgeTrending, badgeGuardian, badgeTopReporter),
+                            const SizedBox(height: 16),
+                            _buildRecentReports(myReports),
+                            const SizedBox(height: 16),
+                            // Mengirimkan username ke seksi Akun
+                            _buildAccountSection(context, username), 
+                            const SizedBox(height: 16),
+                            _buildEmergencyInfo(),
+                            const SizedBox(height: 32),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           );
         },
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-            );
-          } else {
-            setState(() => _currentIndex = index);
-          }
-        },
-        selectedItemColor: const Color(0xFF2A23C2),
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Beranda'),
-          BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: 'Peta'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'), 
-        ],
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  // --- KOMPONEN HEADER YANG DIUPDATE ---
+  Widget _buildHeader(BuildContext context, String fullName, String username, String phoneNumber) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 32),
@@ -220,8 +244,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Icon(Icons.person, size: 40, color: Color(0xFF1E1E96)),
           ),
           const SizedBox(height: 16),
+          // Menampilkan Nama Lengkap yang Asli
           Text(
-            currentUserName,
+            fullName,
             style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
@@ -248,10 +273,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: () {
+              // Melempar data yang asli ke halaman Edit Profile
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => EditProfileScreen(currentName: currentUserName),
+                  builder: (context) => EditProfileScreen(
+                    currentFullName: fullName,
+                    currentUsername: username,
+                    currentPhoneNumber: phoneNumber,
+                  ),
                 ),
               );
             },
@@ -437,8 +467,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // --- BAGIAN AKUN YANG SUDAH DIUPDATE NAVIGASI LOGIN NYA ---
-  Widget _buildAccountSection(BuildContext context) {
+  // --- SEKSI AKUN YANG DIUPDATE ---
+  Widget _buildAccountSection(BuildContext context, String username) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -450,56 +480,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           const Text('Akun', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text('@${currentUserName.toLowerCase()}', style: const TextStyle(color: Colors.grey)),
+          // Menampilkan Username yang Asli
+          Text('@${username.toLowerCase()}', style: const TextStyle(color: Colors.grey)),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
-            child: _isLoggedIn 
-              ? OutlinedButton.icon(
-                  onPressed: () async {
-                    bool? confirm = await _showLogoutDialog();
-                    if (confirm == true) {
-                      setState(() {
-                        _isLoggedIn = false; 
-                      });
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Anda telah berhasil keluar.')),
-                        );
-                      }
-                    }
-                  },
-                  icon: const Icon(Icons.logout, color: Colors.deepOrange),
-                  label: const Text('Keluar Akun', style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold)),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.deepOrange),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                )
-              : OutlinedButton.icon(
-                  // DIUPDATE: Mengarahkan ke LoginScreen dan menunggu data kembalian
-                  onPressed: () async {
-                    bool? loginSuccess = await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                bool? confirm = await _showLogoutDialog();
+                if (confirm == true) {
+                  await FirebaseAuth.instance.signOut();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Anda telah berhasil keluar.')),
                     );
-                    
-                    // Jika loginScreen mengembalikan nilai true, ubah state ke logged-in
-                    if (loginSuccess == true) {
-                      setState(() {
-                        _isLoggedIn = true;
-                      });
-                    }
-                  },
-                  icon: const Icon(Icons.login, color: Color(0xFF1E1E96)),
-                  label: const Text('Masuk Akun', style: TextStyle(color: Color(0xFF1E1E96), fontWeight: FontWeight.bold)),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFF1E1E96)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                ),
+                    // Pindah secara menyeluruh kembali ke Login Screen
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      (Route<dynamic> route) => false,
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.logout, color: Colors.deepOrange),
+              label: const Text('Keluar Akun', style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold)),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.deepOrange),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
           ),
         ],
       ),

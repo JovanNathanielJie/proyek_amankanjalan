@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'add_report_screen.dart';
 import 'report_detail_screen.dart';
-import 'profile_screen.dart'; // Import halaman profil
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -12,10 +11,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
   String _selectedUrgency = 'Semua';
   String _selectedCategory = 'Semua Kategori';
-  String _searchQuery = ''; // State untuk pencarian
+  String _searchQuery = ''; 
 
   @override
   Widget build(BuildContext context) {
@@ -48,28 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: const Color(0xFF2A23C2),
         child: const Icon(Icons.add, color: Colors.white),
       ),
-      // --- BOTTOM NAVIGATION BAR YANG SUDAH DIPERBARUI ---
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          if (index == 2) {
-            // Pindah ke halaman Profil saat ikon profil diklik
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const ProfileScreen()),
-            );
-          } else {
-            setState(() => _currentIndex = index);
-          }
-        },
-        selectedItemColor: const Color(0xFF2A23C2),
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Beranda'),
-          BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: 'Peta'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profil'),
-        ],
-      ),
+      // BOTTOM NAVIGATION SUDAH DIHAPUS DARI SINI
     );
   }
 
@@ -88,18 +65,8 @@ class _HomeScreenState extends State<HomeScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: const [
-                  Text(
-                    'Selamat Datang',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                  Text(
-                    'AmankanJalan',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  Text('Selamat Datang', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                  Text('AmankanJalan', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
                 ],
               ),
             ],
@@ -113,9 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             child: TextField(
               onChanged: (value) {
-                setState(() {
-                  _searchQuery = value.toLowerCase(); 
-                });
+                setState(() { _searchQuery = value.toLowerCase(); });
               },
               decoration: const InputDecoration(
                 icon: Icon(Icons.search, color: Colors.grey),
@@ -139,15 +104,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
         if (snapshot.hasData) {
           totalLaporan = snapshot.data!.docs.length;
-          
           for (var doc in snapshot.data!.docs) {
             var data = doc.data() as Map<String, dynamic>;
-            if (data['urgency'] == 'DARURAT') {
-              totalDarurat++;
-            }
-            if (data['status'] == 'Ditangani') {
-              totalDitangani++;
-            }
+            if (data['urgency'] == 'DARURAT') totalDarurat++;
+            if (data['status'] == 'Ditangani') totalDitangani++;
           }
         }
 
@@ -174,10 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 4),
           padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(12),
-          ),
+          decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
           child: Column(
             children: [
               Icon(icon, color: iconColor),
@@ -231,21 +188,14 @@ class _HomeScreenState extends State<HomeScreen> {
         showCheckmark: false,
         label: Row(
           children: [
-            if (icon != null) ...[
-              Icon(icon, size: 16, color: isSelected ? Colors.white : Colors.orange),
-              const SizedBox(width: 4),
-            ],
+            if (icon != null) ...[Icon(icon, size: 16, color: isSelected ? Colors.white : Colors.orange), const SizedBox(width: 4)],
             Text(label),
           ],
         ),
         selected: isSelected,
         onSelected: (bool selected) {
           setState(() {
-            if (isUrgency) {
-              _selectedUrgency = label;
-            } else {
-              _selectedCategory = label;
-            }
+            if (isUrgency) { _selectedUrgency = label; } else { _selectedCategory = label; }
           });
         },
         selectedColor: const Color(0xFF2A23C2),
@@ -274,58 +224,28 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildReportList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('reports')
-          .orderBy('timestamp', descending: true) 
-          .snapshots(),
+      stream: FirebaseFirestore.instance.collection('reports').orderBy('timestamp', descending: true).snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Padding(
-            padding: EdgeInsets.all(32.0),
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        if (snapshot.hasError) {
-          return const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Center(child: Text('Terjadi kesalahan memuat data.')),
-          );
-        }
-
+        if (snapshot.connectionState == ConnectionState.waiting) return const Padding(padding: EdgeInsets.all(32.0), child: Center(child: CircularProgressIndicator()));
+        if (snapshot.hasError) return const Padding(padding: EdgeInsets.all(16.0), child: Center(child: Text('Terjadi kesalahan memuat data.')));
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const Padding(
             padding: EdgeInsets.all(32.0),
-            child: Center(
-              child: Text(
-                'Belum ada laporan.\nKlik tombol + di bawah untuk menambahkan.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
+            child: Center(child: Text('Belum ada laporan.\nKlik tombol + di bawah untuk menambahkan.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey))),
           );
         }
 
         var allDocs = snapshot.data!.docs;
-        
         var filteredDocs = allDocs.where((doc) {
           var data = doc.data() as Map<String, dynamic>;
-          
           String urgencyDb = data['urgency'] ?? '';
           String categoryDb = data['category'] ?? '';
-          
           String titleDb = (data['title'] ?? '').toLowerCase();
           String locationDb = (data['location'] ?? '').toLowerCase();
 
-          bool matchSearch = _searchQuery.isEmpty || 
-                             titleDb.contains(_searchQuery) || 
-                             locationDb.contains(_searchQuery);
-
-          bool matchUrgency = _selectedUrgency == 'Semua' || 
-                              urgencyDb.toUpperCase() == _selectedUrgency.toUpperCase();
-
-          bool matchCategory = _selectedCategory == 'Semua Kategori' || 
-                               categoryDb == _selectedCategory;
+          bool matchSearch = _searchQuery.isEmpty || titleDb.contains(_searchQuery) || locationDb.contains(_searchQuery);
+          bool matchUrgency = _selectedUrgency == 'Semua' || urgencyDb.toUpperCase() == _selectedUrgency.toUpperCase();
+          bool matchCategory = _selectedCategory == 'Semua Kategori' || categoryDb == _selectedCategory;
 
           return matchSearch && matchUrgency && matchCategory;
         }).toList();
@@ -338,11 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: const [
                   Icon(Icons.search_off, size: 48, color: Colors.grey),
                   SizedBox(height: 16),
-                  Text(
-                    'Tidak ada laporan yang sesuai pencarian atau filter.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
-                  ),
+                  Text('Tidak ada laporan yang sesuai pencarian atau filter.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
                 ],
               ),
             ),
@@ -357,19 +273,15 @@ class _HomeScreenState extends State<HomeScreen> {
           itemBuilder: (context, index) {
             var doc = filteredDocs[index];
             var data = doc.data() as Map<String, dynamic>;
-
             Color catBgColor = Colors.blue.shade100;
             Color catTextColor = Colors.blue.shade800;
             
             if (data['category'] == 'Rawan Kecelakaan') {
-              catBgColor = Colors.red.shade100;
-              catTextColor = Colors.red;
+              catBgColor = Colors.red.shade100; catTextColor = Colors.red;
             } else if (data['category'] == 'Area Gelap') {
-              catBgColor = Colors.purple.shade100;
-              catTextColor = Colors.purple;
+              catBgColor = Colors.purple.shade100; catTextColor = Colors.purple;
             } else if (data['category'] == 'Lampu Mati') {
-              catBgColor = Colors.orange.shade100;
-              catTextColor = Colors.orange.shade900;
+              catBgColor = Colors.orange.shade100; catTextColor = Colors.orange.shade900;
             }
 
             return _buildReportCard(
@@ -393,34 +305,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildReportCard({
-    required BuildContext context,
-    required String docId,
-    required String rank,
-    required String category,
-    required String urgency,
-    required String title,
-    required String location,
-    required String description,
-    required int upvotes,
-    required String timeAgo,
-    required Color categoryColor,
-    required Color categoryTextColor,
+    required BuildContext context, required String docId, required String rank, required String category, required String urgency, required String title, required String location, required String description, required int upvotes, required String timeAgo, required Color categoryColor, required Color categoryTextColor,
   }) {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.grey.shade200)),
       child: InkWell(
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ReportDetailScreen(docId: docId),
-            ),
-          );
+          Navigator.push(context, MaterialPageRoute(builder: (context) => ReportDetailScreen(docId: docId)));
         },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
@@ -435,29 +328,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: categoryColor,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                        decoration: BoxDecoration(color: categoryColor, borderRadius: BorderRadius.circular(8)),
                         child: Text(category, style: TextStyle(color: categoryTextColor, fontSize: 10, fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: urgency.toUpperCase() == 'DARURAT' ? Colors.red : Colors.orange,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                        decoration: BoxDecoration(color: urgency.toUpperCase() == 'DARURAT' ? Colors.red : Colors.orange, borderRadius: BorderRadius.circular(8)),
                         child: Text(urgency, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2A23C2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                    decoration: BoxDecoration(color: const Color(0xFF2A23C2), borderRadius: BorderRadius.circular(8)),
                     child: Text(rank, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                   ),
                 ],
@@ -473,43 +357,26 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
-                description,
-                style: const TextStyle(color: Colors.black87, fontSize: 13),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+              Text(description, style: const TextStyle(color: Colors.black87, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
+                      Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle)),
                       const SizedBox(width: 6),
                       Text('Aktif • $timeAgo', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                     ],
                   ),
                   InkWell(
                     onTap: () {
-                      FirebaseFirestore.instance.collection('reports').doc(docId).update({
-                        'upvotes': FieldValue.increment(1)
-                      });
+                      FirebaseFirestore.instance.collection('reports').doc(docId).update({'upvotes': FieldValue.increment(1)});
                     },
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE6E6FA),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                      decoration: BoxDecoration(color: const Color(0xFFE6E6FA), borderRadius: BorderRadius.circular(16)),
                       child: Row(
                         children: [
                           const Icon(Icons.arrow_upward, size: 14, color: Color(0xFF2A23C2)),

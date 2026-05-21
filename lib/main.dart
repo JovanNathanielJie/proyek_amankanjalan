@@ -1,9 +1,10 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:proyek_amankanjalan/firebase_options.dart';
 import 'package:proyek_amankanjalan/screens/splash_screen.dart';
 import 'package:proyek_amankanjalan/screens/login_screen.dart';
-import 'package:proyek_amankanjalan/screens/register_screen.dart';
+import 'package:proyek_amankanjalan/screens/main_navigation.dart';
 
 void main() async { 
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,6 +54,23 @@ class _SplashWrapperState extends State<SplashWrapper> {
     if (_isLoading) {
       return SplashScreen(onLoadingComplete: _onLoadingComplete);
     }
-    return const LoginScreen();
+    
+    // Cek status login
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        
+        // Jika sudah login, langsung ke Navigasi Utama (Bottom Nav)
+        if (snapshot.hasData && snapshot.data != null) {
+          return const MainNavigation(); 
+        }
+        
+        // Jika belum, ke Login
+        return const LoginScreen();
+      },
+    );
   }
 }

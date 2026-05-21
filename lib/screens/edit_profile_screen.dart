@@ -1,72 +1,93 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class EditProfileScreen extends StatefulWidget {
-  final String currentName;
-  // Jika kamu sudah punya data lain (email, no hp) di profil, bisa dipassing ke sini juga
+  final String currentFullName;
+  final String currentUsername;
+  final String currentPhoneNumber;
 
-  const EditProfileScreen({Key? key, required this.currentName}) : super(key: key);
+  const EditProfileScreen({
+    Key? key,
+    required this.currentFullName,
+    required this.currentUsername,
+    required this.currentPhoneNumber,
+  }) : super(key: key);
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  late TextEditingController _nameController;
-  late TextEditingController _emailController;
-  late TextEditingController _phoneController;
+  late TextEditingController _fullNameController;
+  late TextEditingController _usernameController;
+  late TextEditingController _phoneNumberController;
   
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    // Mengisi form dengan data saat ini
-    _nameController = TextEditingController(text: widget.currentName);
-    
-    // Simulasi data (karena sebelumnya kita belum memakai database user, ini sebagai contoh)
-    // Nanti bisa kamu ganti dengan data asli dari Firestore/FirebaseAuth
-    _emailController = TextEditingController(text: "${widget.currentName.toLowerCase()}@email.com");
-    _phoneController = TextEditingController(text: "081234567890");
+    // Mengisi form dengan data saat ini yang dilempar dari ProfileScreen
+    _fullNameController = TextEditingController(text: widget.currentFullName);
+    _usernameController = TextEditingController(text: widget.currentUsername);
+    _phoneNumberController = TextEditingController(text: widget.currentPhoneNumber);
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
+    _fullNameController.dispose();
+    _usernameController.dispose();
+    _phoneNumberController.dispose();
     super.dispose();
   }
 
   Future<void> _saveProfile() async {
+    // Validasi form kosong
+    if (_fullNameController.text.trim().isEmpty || 
+        _usernameController.text.trim().isEmpty || 
+        _phoneNumberController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Semua kolom harus diisi!')),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // LOGIKA UPDATE KE DATABASE (FIRESTORE)
-      // Contoh: Jika kamu punya collection 'users', kodenya seperti ini:
-      /*
-      await FirebaseFirestore.instance.collection('users').doc('user_123').update({
-        'name': _nameController.text.trim(),
-        'email': _emailController.text.trim(),
-        'phone': _phoneController.text.trim(),
-      });
-      */
+      // Mendapatkan UID User yang sedang login
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      
+      if (currentUser != null) {
+        // Update data ke Firebase Realtime Database
+        await FirebaseDatabase.instance.ref('users/${currentUser.uid}').update({
+          'fullName': _fullNameController.text.trim(),
+          'username': _usernameController.text.trim(),
+          'phoneNumber': _phoneNumberController.text.trim(),
+        });
 
-      // Simulasi delay jaringan
-      await Future.delayed(const Duration(seconds: 1));
-
-      if (mounted) {
-        Navigator.pop(context); // Kembali ke profil setelah selesai
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profil berhasil diperbarui!')),
-        );
+        if (mounted) {
+          Navigator.pop(context, true); // Kembali dan kirim sinyal 'true' (sukses)
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profil berhasil diperbarui!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memperbarui profil: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memperbarui profil: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -98,6 +119,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,13 +141,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       Positioned(
                         bottom: 0,
                         right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF1E1E96),
-                            shape: BoxShape.circle,
+                        child: InkWell(
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Fitur ubah foto akan segera hadir!')),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF1E1E96),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
                           ),
-                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
                         ),
                       )
                     ],
@@ -128,15 +163,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const SizedBox(height: 32),
                 
                 _buildLabel('Nama Lengkap'),
-                _buildTextField(_nameController, 'Masukkan nama lengkap', Icons.person_outline),
+                _buildTextField(_fullNameController, 'Masukkan nama lengkap', Icons.person_outline),
                 const SizedBox(height: 16),
                 
-                _buildLabel('Email'),
-                _buildTextField(_emailController, 'Masukkan email', Icons.email_outlined, keyboardType: TextInputType.emailAddress),
+                _buildLabel('Username'),
+                _buildTextField(_usernameController, 'Masukkan username', Icons.alternate_email),
                 const SizedBox(height: 16),
                 
                 _buildLabel('Nomor Telepon'),
-                _buildTextField(_phoneController, 'Masukkan nomor telepon', Icons.phone_outlined, keyboardType: TextInputType.phone),
+                _buildTextField(
+                  _phoneNumberController, 
+                  'Masukkan nomor telepon', 
+                  Icons.phone_outlined, 
+                  keyboardType: TextInputType.phone,
+                ),
                 const SizedBox(height: 32),
                 
                 SizedBox(
@@ -149,8 +189,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: _isLoading 
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('Simpan Perubahan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                        ? const SizedBox(
+                            width: 20, 
+                            height: 20, 
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                          )
+                        : const Text(
+                            'Simpan Perubahan', 
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)
+                          ),
                   ),
                 ),
               ],
