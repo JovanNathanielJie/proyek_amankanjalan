@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Ditambahkan
+import 'package:firebase_database/firebase_database.dart'; // Ditambahkan
 
 class AddReportScreen extends StatefulWidget {
   const AddReportScreen({Key? key}) : super(key: key);
@@ -24,9 +26,47 @@ class _AddReportScreenState extends State<AddReportScreen> {
   final ImagePicker _picker = ImagePicker();
   
   bool _isLoading = false;
+  bool _isDataLoading = true; // Ditambahkan untuk status memuat identitas akun
 
+  // Variabel penampung identitas pengisi laporan asli
   String currentUserId = "";
-  String currentUserName = "Loading...";
+  String currentUserName = "Memuat nama...";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData(); // Jalankan pencarian nama asli saat halaman dibuka
+  }
+
+  // Fungsi mengambil identitas asli dari Firebase
+  Future<void> _loadUserData() async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        setState(() {
+          currentUserId = user.uid;
+        });
+        
+        // Mengambil field fullName dari lokasi users/uid di Realtime Database
+        DataSnapshot snapshot = await FirebaseDatabase.instance.ref('users/${user.uid}/fullName').get();
+        if (snapshot.exists) {
+          setState(() {
+            currentUserName = snapshot.value.toString();
+          });
+        } else {
+          setState(() {
+            currentUserName = "Warga AmankanJalan";
+          });
+        }
+      }
+    } catch (e) {
+      print("Gagal mengambil profil pelapor: $e");
+    } finally {
+      setState(() {
+        _isDataLoading = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -111,8 +151,8 @@ class _AddReportScreenState extends State<AddReportScreen> {
         'timestamp': FieldValue.serverTimestamp(),
         'upvotes': 0,
         'status': 'Aktif',
-        'reporterId': currentUserId,
-        'reporterName': currentUserName,
+        'reporterId': currentUserId, // Otomatis ID user asli yang login
+        'reporterName': currentUserName, // Otomatis Nama asli dari Realtime Database
         'supportedBy': [], 
       });
 
@@ -139,6 +179,16 @@ class _AddReportScreenState extends State<AddReportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Tahan UI dengan indikator loading jika data user belum berhasil ditarik
+    if (_isDataLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF0F0F5),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF1E1E96)),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF0F0F5),
       appBar: AppBar(
@@ -305,7 +355,6 @@ class _AddReportScreenState extends State<AddReportScreen> {
         const Text('Tambahkan foto untuk memperkuat laporan (opsional)', style: TextStyle(color: Colors.grey, fontSize: 12)),
         const SizedBox(height: 16),
         
-        // --- LOGIKA TAMPILAN PREVIEW WEB & MOBILE ---
         if (_imageFile != null) ...[
           Stack(
             children: [
@@ -313,13 +362,13 @@ class _AddReportScreenState extends State<AddReportScreen> {
                 borderRadius: BorderRadius.circular(12),
                 child: kIsWeb
                     ? Image.network(
-                        _imageFile!.path, // Web menggunakan network blob URL
+                        _imageFile!.path,
                         height: 180, 
                         width: double.infinity, 
                         fit: BoxFit.cover,
                       )
                     : Image.file(
-                        File(_imageFile!.path), // HP menggunakan File io
+                        File(_imageFile!.path),
                         height: 180, 
                         width: double.infinity, 
                         fit: BoxFit.cover,

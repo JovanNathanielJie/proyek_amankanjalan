@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:url_launcher/url_launcher.dart'; // Wajib di-import
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'edit_report_screen.dart'; 
 
 class ReportDetailScreen extends StatefulWidget {
   final String docId;
@@ -12,44 +14,50 @@ class ReportDetailScreen extends StatefulWidget {
 }
 
 class _ReportDetailScreenState extends State<ReportDetailScreen> {
-  // Simulasi ID User (Nanti diganti dengan FirebaseAuth.instance.currentUser!.uid)
-  final String currentUserId = "user_123";
+  // Ambil user ID yang sedang login secara dinamis
+  final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
 
-  // Fungsi untuk membuka aplikasi peta di HP
-  Future<void> _openMapApp(String coordinates) async {
-  // 1. Bersihkan koordinat dari spasi
-  final List<String> latLng = coordinates.split(',');
-  if (latLng.length != 2) return;
-
-  final String lat = latLng[0].trim();
-  final String lng = latLng[1].trim();
-
-  // 2. Tentukan skema berdasarkan OS
-  // Android menggunakan geo:lat,lng
-  // iOS menggunakan maps://?q=lat,lng
-  String url = "geo:$lat,$lng?q=$lat,$lng"; // Default Android
-  
-  // Jika iOS, gunakan format Apple Maps
-  if (Theme.of(context).platform == TargetPlatform.iOS) {
-    url = "maps://?q=$lat,$lng";
-  }
-
-  final Uri uri = Uri.parse(url);
-
-  try {
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      // Jika skema gagal, buka via Google Maps Browser sebagai backup
-      final Uri browserUri = Uri.parse("https://www.google.com/maps/search/?api=1&query=$lat,$lng");
-      await launchUrl(browserUri, mode: LaunchMode.externalApplication);
+  // --- FUNGSI BUKA PETA YANG SUDAH DIPERBARUI (MENDUKUNG SEMUA FORMAT) ---
+  Future<void> _openMapApp(String query) async {
+    // 1. Jika user menginput link berawalan http atau https langsung buka browsernya
+    if (query.startsWith('http')) {
+      final Uri uri = Uri.parse(query);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
+      }
     }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal membuka peta: $e')));
-  }
-}
 
-  // Fungsi untuk mengubah Timestamp menjadi teks "waktu berlalu"
+    // 2. Jika input berupa Alamat, Koordinat Desimal, atau Koordinat Derajat (DMS)
+    // Kita ubah teksnya menjadi format pencarian URL yang aman (URL Encode)
+    final String encodedQuery = Uri.encodeComponent(query);
+    
+    // Default format untuk Android (menggunakan query pencarian)
+    String url = "geo:0,0?q=$encodedQuery"; 
+    
+    // Jika perangkat adalah iOS, gunakan format Apple Maps
+    if (Theme.of(context).platform == TargetPlatform.iOS) {
+      url = "maps://?q=$encodedQuery";
+    }
+
+    final Uri uri = Uri.parse(url);
+
+    try {
+      if (await canLaunchUrl(uri)) {
+        // Coba buka aplikasi peta bawaan HP (Google Maps / Apple Maps)
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        // BACKUP: Jika di HP tidak ada aplikasi peta, buka lewat website Google Maps
+        final Uri fallbackUri = Uri.parse("https://www.google.com/maps/search/?api=1&query=$encodedQuery");
+        await launchUrl(fallbackUri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal membuka peta: $e'))
+      );
+    }
+  }
+
   String _getTimeAgo(Timestamp? timestamp) {
     if (timestamp == null) return 'Baru saja';
     final DateTime now = DateTime.now();
@@ -86,6 +94,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
           String description = data['description'] ?? 'Tidak ada deskripsi.';
           int upvotes = data['upvotes'] ?? 0;
           String status = data['status'] ?? 'Aktif';
+          String reporterId = data['reporterId'] ?? '';
           
           String? imageUrl = data['imageUrl'];
           String reporterName = data['reporterName'] ?? 'Anonim';
@@ -95,13 +104,16 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
           List<dynamic> supportedBy = data['supportedBy'] ?? [];
           bool isSupportedByMe = supportedBy.contains(currentUserId);
           
-          // Pastikan di Firestore field 'coordinates' sudah ada datanya
-          String coordinates = data['coordinates'] ?? '-6.229700, 106.829500';
+          // Mengambil teks dari koordinat, atau gunakan alamat jika kosong
+          String coordinates = data['coordinates'] ?? location; 
+          
+          // Cek apakah laporan ini milik user yang sedang login
+          bool isMyReport = currentUserId == reporterId;
 
           return SafeArea(
             child: Column(
               children: [
-                _buildHeader(context, category, urgency, title, location),
+                _buildHeader(context, category, urgency, title, location, isMyReport, description),
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
@@ -117,7 +129,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                         const SizedBox(height: 16),
                         _buildDescriptionCard(description),
                         const SizedBox(height: 16),
-                        _buildCoordinatesCard(coordinates), // Sekarang bisa diklik
+                        _buildCoordinatesCard(coordinates),
                         const SizedBox(height: 16),
                         _buildSupportCard(upvotes),
                         const SizedBox(height: 24),
@@ -134,18 +146,42 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context, String category, String urgency, String title, String location) {
+  Widget _buildHeader(BuildContext context, String category, String urgency, String title, String location, bool isMyReport, String desc) {
     return Container(
       padding: const EdgeInsets.all(20),
       color: const Color(0xFF1E1E96),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: const Icon(Icons.arrow_back, color: Colors.white),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: const Icon(Icons.arrow_back, color: Colors.white),
+              ),
+              // TOMBOL EDIT MUNCUL JIKA INI LAPORAN SAYA
+              if (isMyReport)
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.white),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EditReportScreen(
+                          docId: widget.docId,
+                          initialTitle: title,
+                          initialDesc: desc,
+                          initialLocation: location,
+                          initialUrgency: urgency,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+            ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -248,7 +284,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     );
   }
 
-  // --- CARD KOORDINAT YANG BISA DIKLIK ---
   Widget _buildCoordinatesCard(String coordinates) {
     return Card(
       elevation: 0,
@@ -261,7 +296,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Koordinat Lokasi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text('Lokasi / Koordinat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -270,8 +305,16 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                   children: [
                     const Icon(Icons.near_me, color: Color(0xFF2A23C2), size: 18),
                     const SizedBox(width: 8),
-                    Text(coordinates, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
-                    const Spacer(),
+                    // Dibungkus Expanded agar url yang kepanjangan tidak melebihi layar
+                    Expanded(
+                      child: Text(
+                        coordinates, 
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     const Text('Buka Peta', style: TextStyle(fontSize: 10, color: Color(0xFF2A23C2), fontWeight: FontWeight.bold)),
                   ],
                 ),
