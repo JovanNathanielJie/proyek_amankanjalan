@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter_map/flutter_map.dart'; // Package peta asli
 import 'package:latlong2/latlong.dart'; // Package koordinat peta
+import 'dart:ui' as ui;
 
 class MapScreen extends StatefulWidget {
   const MapScreen({Key? key}) : super(key: key);
@@ -99,19 +101,15 @@ class _MapScreenState extends State<MapScreen> {
                   mapMarkers.add(
                     Marker(
                       point: position,
-                      width: 40,
-                      height: 40,
+                      width: 60,
+                      height: 70,
                       child: GestureDetector(
                         onTap: () {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text(title), duration: const Duration(seconds: 1)),
                           );
                         },
-                        child: Icon(
-                          Icons.location_on,
-                          color: markerColor,
-                          size: 40,
-                        ),
+                        child: _buildCustomMarker(markerColor, urgency, title),
                       ),
                     ),
                   );
@@ -122,6 +120,7 @@ class _MapScreenState extends State<MapScreen> {
             return Column(
               children: [
                 _buildHeader(),
+                _buildLegend(),
                 
                 // --- PETA ASLI ---
                 SizedBox(
@@ -211,12 +210,24 @@ class _MapScreenState extends State<MapScreen> {
                                         ),
                                         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
                                         subtitle: Text(location, style: const TextStyle(fontSize: 11, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                        trailing: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                        trailing: Row(
+                                          mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(Icons.arrow_upward, color: urgencyColor, size: 14),
-                                            const SizedBox(height: 2),
-                                            Text('$upvotes', style: TextStyle(color: urgencyColor, fontWeight: FontWeight.bold, fontSize: 12)),
+                                            // Tombol Bagikan
+                                            IconButton(
+                                              icon: const Icon(Icons.share_outlined, size: 18),
+                                              onPressed: () => _shareReport(title, category, urgency, location),
+                                              tooltip: 'Bagikan',
+                                            ),
+                                            // Upvote
+                                            Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                Icon(Icons.arrow_upward, color: urgencyColor, size: 14),
+                                                const SizedBox(height: 2),
+                                                Text('$upvotes', style: TextStyle(color: urgencyColor, fontWeight: FontWeight.bold, fontSize: 12)),
+                                              ],
+                                            ),
                                           ],
                                         ),
                                         onTap: () => _openExternalMap(tapData),
@@ -253,4 +264,204 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
   }
+
+  /// Widget untuk menampilkan legenda urgensi
+  Widget _buildLegend() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      color: Colors.white,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Tingkat Urgensi',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              // Darurat - Merah
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.priority_high, color: Colors.white, size: 12),
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text('Darurat', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    ),
+                  ],
+                ),
+              ),
+              // Sedang - Oranye
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: const BoxDecoration(
+                        color: Colors.orange,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.remove, color: Colors.white, size: 12),
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text('Sedang', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    ),
+                  ],
+                ),
+              ),
+              // Rendah - Hijau
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: const BoxDecoration(
+                        color: Colors.green,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text('Rendah', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Widget untuk custom marker sesuai tingkat urgensi
+  Widget _buildCustomMarker(Color color, String urgency, String title) {
+    IconData icon = Icons.location_on;
+    
+    // Tentukan icon berdasarkan urgensi
+    if (urgency.toUpperCase() == 'DARURAT') {
+      icon = Icons.priority_high; // Tanda seru
+    } else if (urgency.toUpperCase() == 'SEDANG') {
+      icon = Icons.remove; // Garis/strip
+    }
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // Glow background layer
+        Positioned(
+          top: 8,
+          child: Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.5),
+                  blurRadius: 16,
+                  spreadRadius: 4,
+                ),
+                BoxShadow(
+                  color: color.withOpacity(0.3),
+                  blurRadius: 24,
+                  spreadRadius: 8,
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Main marker circle
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 6,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: Center(
+            child: Icon(icon, color: Colors.white, size: 26, weight: 700),
+          ),
+        ),
+        // Pointer ke bawah
+        Positioned(
+          top: 32,
+          child: CustomPaint(
+            painter: _TrianglePainter(color),
+            size: const Size(24, 12),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Fungsi untuk membagikan laporan
+  Future<void> _shareReport(String title, String category, String urgency, String location) async {
+    final String shareMessage = '''🚨 Laporan AmankanJalan
+
+📍 Judul: $title
+🏷️ Kategori: $category
+⚠️ Urgensi: $urgency
+📌 Lokasi: $location
+
+Bagikan informasi ini untuk meningkatkan kesadaran keselamatan jalan bersama!''';
+
+    try {
+      await Share.share(
+        shareMessage,
+        subject: 'Laporan AmankanJalan: $title',
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal membagikan: $e')),
+      );
+    }
+  }
+}
+
+/// Custom painter untuk menggambar segitiga pointer
+class _TrianglePainter extends CustomPainter {
+  final Color color;
+
+  _TrianglePainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    // Buat segitiga dengan path
+    ui.Path path = ui.Path();
+    path.moveTo(size.width / 2, 0);
+    path.lineTo(0, size.height);
+    path.lineTo(size.width, size.height);
+    path.close();
+    
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_TrianglePainter oldDelegate) => color != oldDelegate.color;
 }

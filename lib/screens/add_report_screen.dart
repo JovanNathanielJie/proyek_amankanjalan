@@ -1,11 +1,11 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb; // Menambahkan deteksi Web
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Ditambahkan
-import 'package:firebase_database/firebase_database.dart'; // Ditambahkan
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class AddReportScreen extends StatefulWidget {
   const AddReportScreen({Key? key}) : super(key: key);
@@ -20,25 +20,35 @@ class _AddReportScreenState extends State<AddReportScreen> {
   final TextEditingController _locationController = TextEditingController();
   
   String _selectedUrgency = 'RENDAH';
+  String _selectedCategory = 'Lampu Mati'; // Kategori default
   
-  // MENGUBAH File menjadi XFile agar kompatibel dengan Web
   XFile? _imageFile; 
   final ImagePicker _picker = ImagePicker();
   
   bool _isLoading = false;
-  bool _isDataLoading = true; // Ditambahkan untuk status memuat identitas akun
+  bool _isDataLoading = true;
 
-  // Variabel penampung identitas pengisi laporan asli
   String currentUserId = "";
   String currentUserName = "Memuat nama...";
+
+  // Daftar kategori laporan dengan icon
+  final List<Map<String, dynamic>> _categories = [
+    {'name': 'Lampu Mati', 'icon': Icons.lightbulb_outline, 'color': Colors.orange},
+    {'name': 'Area Gelap', 'icon': Icons.dark_mode_outlined, 'color': Colors.purple},
+    {'name': 'Rawan Kecelakaan', 'icon': Icons.warning_amber_rounded, 'color': Colors.red},
+    {'name': 'Kemacetan', 'icon': Icons.traffic_outlined, 'color': Colors.blue},
+    {'name': 'Jalan Rusak', 'icon': Icons.broken_image_outlined, 'color': Colors.brown},
+    {'name': 'Rambu Rusak', 'icon': Icons.construction_outlined, 'color': Colors.indigo},
+    {'name': 'Banjir', 'icon': Icons.water_drop_outlined, 'color': Colors.cyan},
+    {'name': 'Lainnya', 'icon': Icons.more_horiz, 'color': Colors.grey},
+  ];
 
   @override
   void initState() {
     super.initState();
-    _loadUserData(); // Jalankan pencarian nama asli saat halaman dibuka
+    _loadUserData();
   }
 
-  // Fungsi mengambil identitas asli dari Firebase
   Future<void> _loadUserData() async {
     try {
       User? user = FirebaseAuth.instance.currentUser;
@@ -47,7 +57,6 @@ class _AddReportScreenState extends State<AddReportScreen> {
           currentUserId = user.uid;
         });
         
-        // Mengambil field fullName dari lokasi users/uid di Realtime Database
         DataSnapshot snapshot = await FirebaseDatabase.instance.ref('users/${user.uid}/fullName').get();
         if (snapshot.exists) {
           setState(() {
@@ -80,12 +89,14 @@ class _AddReportScreenState extends State<AddReportScreen> {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
-        imageQuality: 70,
+        imageQuality: 30,  // Naikkan kompresi dari 70 menjadi 30 untuk file lebih kecil
+        maxWidth: 1024,    // Resize lebar maksimal 1024px
+        maxHeight: 1024,   // Resize tinggi maksimal 1024px
       );
 
       if (pickedFile != null) {
         setState(() {
-          _imageFile = pickedFile; // Menyimpan XFile langsung
+          _imageFile = pickedFile;
         });
       }
     } catch (e) {
@@ -131,15 +142,8 @@ class _AddReportScreenState extends State<AddReportScreen> {
         imageUrl = await snapshot.ref.getDownloadURL();
       }
 
-      String category = 'Umum';
-      String textToLower = '${_titleController.text} ${_descController.text}'.toLowerCase();
-      if (textToLower.contains('lampu') || textToLower.contains('penerangan')) {
-        category = 'Lampu Mati';
-      } else if (textToLower.contains('kecelakaan') || textToLower.contains('bahaya')) {
-        category = 'Rawan Kecelakaan';
-      } else if (textToLower.contains('gelap')) {
-        category = 'Area Gelap';
-      }
+      // Gunakan kategori yang dipilih user
+      String category = _selectedCategory;
 
       await FirebaseFirestore.instance.collection('reports').add({
         'title': _titleController.text.trim(),
@@ -210,6 +214,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // --- KATEGORI LAPORAN SECTION ---
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -219,31 +224,129 @@ class _AddReportScreenState extends State<AddReportScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const Text(
+                      'Kategori Laporan',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 12),
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 4,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
+                      ),
+                      itemCount: _categories.length,
+                      itemBuilder: (context, index) {
+                        final category = _categories[index];
+                        final isSelected = _selectedCategory == category['name'];
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedCategory = category['name'];
+                            });
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isSelected ? category['color'].withOpacity(0.15) : const Color(0xFFF5F5F5),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSelected ? category['color'] : Colors.transparent,
+                                width: 2,
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  category['icon'],
+                                  color: category['color'],
+                                  size: 28,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  category['name'],
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                    color: isSelected ? category['color'] : Colors.grey.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // --- DETAIL LAPORAN SECTION ---
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Detail Laporan',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Judul Laporan
                     _buildLabel('Judul Laporan *'),
                     _buildTextField(
                       controller: _titleController,
-                      hint: 'Contoh: Tikungan Berbahaya Tanpa Rambu',
+                      hint: 'Contoh: Lampu jalan mati di...',
                     ),
                     const SizedBox(height: 16),
                     
+                    // Deskripsi
                     _buildLabel('Deskripsi *'),
-                    TextField(
-                      controller: _descController,
-                      maxLength: 400,
-                      maxLines: 4,
-                      decoration: InputDecoration(
-                        hintText: 'Jelaskan kondisi secara detail...',
-                        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                        filled: true,
-                        fillColor: const Color(0xFFF8F9FA),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
+                    Stack(
+                      children: [
+                        TextField(
+                          controller: _descController,
+                          maxLength: 400,
+                          maxLines: 4,
+                          onChanged: (value) => setState(() {}),
+                          decoration: InputDecoration(
+                            hintText: 'Jelaskan kondisi dan tingkat bahaya...',
+                            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                            filled: true,
+                            fillColor: const Color(0xFFF8F9FA),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            counterText: '',
+                          ),
                         ),
-                      ),
+                        Positioned(
+                          bottom: 8,
+                          right: 12,
+                          child: Text(
+                            '${_descController.text.length}/400',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 16),
 
+                    // Lokasi
                     _buildLabel('Lokasi *'),
                     _buildTextField(
                       controller: _locationController,
@@ -252,6 +355,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
                     ),
                     const SizedBox(height: 16),
 
+                    // Tingkat Urgensi
                     _buildLabel('Tingkat Urgensi *'),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -283,6 +387,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
               ),
               const SizedBox(height: 16),
 
+              // --- FOTO SECTION ---
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -293,6 +398,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
               ),
               const SizedBox(height: 24),
 
+              // --- SUBMIT BUTTON ---
               ElevatedButton.icon(
                 onPressed: _isLoading ? null : _submitReport,
                 icon: _isLoading 

@@ -3,6 +3,7 @@ import 'package:proyek_amankanjalan/services/firebase_service.dart';
 import 'package:proyek_amankanjalan/screens/main_navigation.dart';
 import 'package:proyek_amankanjalan/screens/register_screen.dart';
 import 'package:proyek_amankanjalan/screens/forgot_password_screen.dart';
+import 'package:proyek_amankanjalan/utils/email_validator.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -142,17 +143,13 @@ class _LoginScreenState extends State<LoginScreen> {
                               keyboardType: TextInputType.emailAddress,
                               decoration: InputDecoration(
                                 labelText: 'Email',
-                                hintText: 'Masukkan email',
+                                hintText: 'Masukkan email (@gmail.com, @yahoo.com, dll)',
                                 prefixIcon: const Icon(Icons.email_outlined),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                 filled: true,
                                 fillColor: Colors.grey[50],
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) return 'Email tidak boleh kosong';
-                                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) return 'Format email tidak valid';
-                                return null;
-                              },
+                              validator: (value) => EmailValidator.validateEmail(value),
                             ),
                             const SizedBox(height: 15),
                             TextFormField(

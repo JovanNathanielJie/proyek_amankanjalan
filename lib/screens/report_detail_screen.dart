@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
 import 'edit_report_screen.dart'; 
 
 class ReportDetailScreen extends StatefulWidget {
@@ -133,7 +134,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                         const SizedBox(height: 16),
                         _buildSupportCard(upvotes),
                         const SizedBox(height: 24),
-                        _buildBottomActions(upvotes, isSupportedByMe),
+                        _buildBottomActions(upvotes, isSupportedByMe, title, category, urgency, location, description),
                       ],
                     ),
                   ),
@@ -344,7 +345,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     );
   }
 
-  Widget _buildBottomActions(int upvotes, bool isSupportedByMe) {
+  Widget _buildBottomActions(int upvotes, bool isSupportedByMe, String title, String category, String urgency, String location, String description) {
     return Row(
       children: [
         Expanded(
@@ -361,7 +362,43 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
             child: Text(isSupportedByMe ? 'Batalkan ($upvotes)' : 'Dukung ($upvotes)', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ),
+        const SizedBox(width: 12),
+        ElevatedButton.icon(
+          onPressed: () => _shareReport(title, category, urgency, location, description),
+          icon: const Icon(Icons.share_outlined),
+          label: const Text('Bagikan'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF2A23C2),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          ),
+        ),
       ],
     );
+  }
+
+  /// Fungsi untuk membagikan laporan ke aplikasi lain
+  Future<void> _shareReport(String title, String category, String urgency, String location, String description) async {
+    final String shareMessage = '''🚨 Laporan AmankanJalan
+
+📍 Judul: $title
+🏷️ Kategori: $category
+⚠️ Urgensi: $urgency
+📌 Lokasi: $location
+
+📝 Deskripsi:
+$description
+
+Bagikan informasi ini untuk meningkatkan kesadaran keselamatan jalan bersama!''';
+
+    try {
+      await Share.share(
+        shareMessage,
+        subject: 'Laporan AmankanJalan: $title',
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal membagikan: $e')),
+      );
+    }
   }
 }

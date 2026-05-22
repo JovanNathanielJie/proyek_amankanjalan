@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:proyek_amankanjalan/utils/email_validator.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -186,7 +187,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               keyboardType: TextInputType.emailAddress,
                               decoration: InputDecoration(
                                 labelText: 'Email',
-                                hintText: 'Masukkan email Anda',
+                                hintText: 'Masukkan email Anda (@gmail.com, @yahoo.com, dll)',
                                 prefixIcon: const Icon(Icons.email_outlined),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
@@ -194,15 +195,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 filled: true,
                                 fillColor: Colors.grey[50],
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Email tidak boleh kosong';
-                                }
-                                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                                  return 'Format email tidak valid';
-                                }
-                                return null;
-                              },
+                              validator: (value) => EmailValidator.validateEmail(value),
                             ),
                             const SizedBox(height: 30),
 

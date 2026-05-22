@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:share_plus/share_plus.dart';
 import 'add_report_screen.dart';
 import 'report_detail_screen.dart';
 
@@ -369,22 +370,46 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text('Aktif • $timeAgo', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                     ],
                   ),
-                  InkWell(
-                    onTap: () {
-                      FirebaseFirestore.instance.collection('reports').doc(docId).update({'upvotes': FieldValue.increment(1)});
-                    },
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(color: const Color(0xFFE6E6FA), borderRadius: BorderRadius.circular(16)),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.arrow_upward, size: 14, color: Color(0xFF2A23C2)),
-                          const SizedBox(width: 4),
-                          Text('$upvotes', style: const TextStyle(color: Color(0xFF2A23C2), fontWeight: FontWeight.bold)),
-                        ],
+                  Row(
+                    children: [
+                      // Tombol Bagikan
+                      InkWell(
+                        onTap: () {
+                          _shareReport(title, category, urgency, location, description);
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(color: const Color(0xFFE6F0FF), borderRadius: BorderRadius.circular(16)),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.share_outlined, size: 14, color: Color(0xFF2A23C2)),
+                              SizedBox(width: 4),
+                              Text('Bagikan', style: TextStyle(color: Color(0xFF2A23C2), fontWeight: FontWeight.bold, fontSize: 11)),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      // Tombol Upvote
+                      InkWell(
+                        onTap: () {
+                          FirebaseFirestore.instance.collection('reports').doc(docId).update({'upvotes': FieldValue.increment(1)});
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(color: const Color(0xFFE6E6FA), borderRadius: BorderRadius.circular(16)),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.arrow_upward, size: 14, color: Color(0xFF2A23C2)),
+                              const SizedBox(width: 4),
+                              Text('$upvotes', style: const TextStyle(color: Color(0xFF2A23C2), fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               )
@@ -393,5 +418,31 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  /// Fungsi untuk membagikan laporan
+  Future<void> _shareReport(String title, String category, String urgency, String location, String description) async {
+    final String shareMessage = '''🚨 Laporan AmankanJalan
+
+📍 Judul: $title
+🏷️ Kategori: $category
+⚠️ Urgensi: $urgency
+📌 Lokasi: $location
+
+📝 Deskripsi:
+$description
+
+Bagikan informasi ini untuk meningkatkan kesadaran keselamatan jalan bersama!''';
+
+    try {
+      await Share.share(
+        shareMessage,
+        subject: 'Laporan AmankanJalan: $title',
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal membagikan: $e')),
+      );
+    }
   }
 }
