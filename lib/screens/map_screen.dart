@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:flutter_map/flutter_map.dart'; // Package peta asli
-import 'package:latlong2/latlong.dart'; // Package koordinat peta
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'dart:ui' as ui;
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({Key? key}) : super(key: key);
+  const MapScreen({super.key});
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -42,22 +42,32 @@ class _MapScreenState extends State<MapScreen> {
         await launchUrl(Uri.parse("https://www.google.com/maps/search/?api=1&query=$encodedQuery"), mode: LaunchMode.externalApplication);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal membuka peta: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal membuka peta: $e')));
+      }
     }
   }
 
   // Fungsi pintar untuk mengekstrak format Desimal (-6.22, 106.82)
   LatLng? _parseCoordinates(String coords) {
+    if (coords.isEmpty) return null;
+    
     try {
-      final parts = coords.split(',');
-      if (parts.length == 2) {
+      // Bersihkan koordinat dari spasi dan simbol ekstra
+      final cleanCoords = coords.replaceAll(RegExp("[°'\"NSEWnsew]"), '').trim();
+      
+      final parts = cleanCoords.split(RegExp(r'[,\s]+'));
+      if (parts.length >= 2) {
         double lat = double.parse(parts[0].trim());
         double lng = double.parse(parts[1].trim());
-        return LatLng(lat, lng);
+        
+        // Validasi range koordinat
+        if (lat.abs() <= 90 && lng.abs() <= 180) {
+          return LatLng(lat, lng);
+        }
       }
     } catch (e) {
-      // Jika formatnya link URL atau teks sembarangan, abaikan (return null)
-      return null;
+      // Koordinat tidak valid
     }
     return null;
   }
@@ -101,8 +111,8 @@ class _MapScreenState extends State<MapScreen> {
                   mapMarkers.add(
                     Marker(
                       point: position,
-                      width: 60,
-                      height: 70,
+                      width: 80,  // Diperbesar dari 60
+                      height: 90, // Diperbesar dari 70
                       child: GestureDetector(
                         onTap: () {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -130,17 +140,23 @@ class _MapScreenState extends State<MapScreen> {
                     ? const Center(child: CircularProgressIndicator())
                     : FlutterMap(
                         options: MapOptions(
-                          initialCenter: mapMarkers.isNotEmpty ? mapMarkers.first.point : _palembangCenter,
+                          initialCenter: mapMarkers.isNotEmpty 
+                            ? mapMarkers.first.point 
+                            : _palembangCenter,
                           initialZoom: 13.0,
+                          minZoom: 5.0,
+                          maxZoom: 18.0,
                         ),
                         children: [
                           TileLayer(
                             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                             userAgentPackageName: 'com.amankanjalan.app',
+                            maxZoom: 19,
                           ),
-                          MarkerLayer(
-                            markers: mapMarkers,
-                          ),
+                          if (mapMarkers.isNotEmpty)
+                            MarkerLayer(
+                              markers: mapMarkers,
+                            ),
                         ],
                       ),
                 ),
@@ -365,18 +381,18 @@ class _MapScreenState extends State<MapScreen> {
         Positioned(
           top: 8,
           child: Container(
-            width: 54,
-            height: 54,
+            width: 64,  // Diperbesar dari 54
+            height: 64,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: color.withOpacity(0.5),
+                  color: color.withValues(alpha: 0.5),
                   blurRadius: 16,
                   spreadRadius: 4,
                 ),
                 BoxShadow(
-                  color: color.withOpacity(0.3),
+                  color: color.withValues(alpha: 0.3),
                   blurRadius: 24,
                   spreadRadius: 8,
                 ),
@@ -386,22 +402,22 @@ class _MapScreenState extends State<MapScreen> {
         ),
         // Main marker circle
         Container(
-          width: 48,
-          height: 48,
+          width: 56,  // Diperbesar dari 48
+          height: 56,
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 3),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withValues(alpha: 0.3),
                 blurRadius: 6,
                 spreadRadius: 1,
               ),
             ],
           ),
           child: Center(
-            child: Icon(icon, color: Colors.white, size: 26, weight: 700),
+            child: Icon(icon, color: Colors.white, size: 28, weight: 700),  // Diperbesar dari 26
           ),
         ),
         // Pointer ke bawah
@@ -409,7 +425,7 @@ class _MapScreenState extends State<MapScreen> {
           top: 32,
           child: CustomPaint(
             painter: _TrianglePainter(color),
-            size: const Size(24, 12),
+            size: const Size(28, 14),  // Diperbesar dari 24, 12
           ),
         ),
       ],
@@ -433,9 +449,11 @@ Bagikan informasi ini untuk meningkatkan kesadaran keselamatan jalan bersama!'''
         subject: 'Laporan AmankanJalan: $title',
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal membagikan: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal membagikan: $e')),
+        );
+      }
     }
   }
 }

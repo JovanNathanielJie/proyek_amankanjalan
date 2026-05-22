@@ -134,7 +134,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                         const SizedBox(height: 16),
                         _buildSupportCard(upvotes),
                         const SizedBox(height: 24),
-                        _buildBottomActions(upvotes, isSupportedByMe, title, category, urgency, location, description),
+                        _buildBottomActions(upvotes, isSupportedByMe, title, category, urgency, location, description, isMyReport, reporterId),
                       ],
                     ),
                   ),
@@ -328,6 +328,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   }
 
   Widget _buildSupportCard(int upvotes) {
+    final int targetSupport = 50; // Target dukungan untuk laporan ditangani
+    final double progress = upvotes >= targetSupport ? 1.0 : upvotes / targetSupport;
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -337,41 +340,107 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Dukungan Warga', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 12),
+            
+            // Progress Bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 12,
+                backgroundColor: Colors.grey.shade200,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  progress >= 1.0 ? Colors.green : const Color(0xFF2A23C2),
+                ),
+              ),
+            ),
             const SizedBox(height: 8),
-            Text('Laporan ini mendapat dukungan dari $upvotes warga.', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+            
+            // Info Dukungan
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '$upvotes warga mendukung',
+                  style: const TextStyle(color: Colors.black87, fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+                Text(
+                  '${(progress * 100).toStringAsFixed(0)}%',
+                  style: const TextStyle(color: Color(0xFF2A23C2), fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            
+            // Target
+            Text(
+              'Target $targetSupport dukungan',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBottomActions(int upvotes, bool isSupportedByMe, String title, String category, String urgency, String location, String description) {
-    return Row(
+  Widget _buildBottomActions(int upvotes, bool isSupportedByMe, String title, String category, String urgency, String location, String description, bool isMyReport, String reporterId) {
+    return Column(
       children: [
-        Expanded(
-          child: ElevatedButton(
-            onPressed: () {
-              var docRef = FirebaseFirestore.instance.collection('reports').doc(widget.docId);
-              if (isSupportedByMe) {
-                docRef.update({'upvotes': FieldValue.increment(-1), 'supportedBy': FieldValue.arrayRemove([currentUserId])});
-              } else {
-                docRef.update({'upvotes': FieldValue.increment(1), 'supportedBy': FieldValue.arrayUnion([currentUserId])});
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E1E96), padding: const EdgeInsets.symmetric(vertical: 16)),
-            child: Text(isSupportedByMe ? 'Batalkan ($upvotes)' : 'Dukung ($upvotes)', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
+        // Row untuk Dukung dan Bagikan
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () {
+                  var docRef = FirebaseFirestore.instance.collection('reports').doc(widget.docId);
+                  if (isSupportedByMe) {
+                    docRef.update({'upvotes': FieldValue.increment(-1), 'supportedBy': FieldValue.arrayRemove([currentUserId])});
+                  } else {
+                    docRef.update({'upvotes': FieldValue.increment(1), 'supportedBy': FieldValue.arrayUnion([currentUserId])});
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1E1E96),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: Text(
+                  isSupportedByMe ? 'Batalkan Dukungan' : 'Dukung',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _shareReport(title, category, urgency, location, description),
+                icon: const Icon(Icons.share_outlined, color: Colors.white),
+                label: const Text('Bagikan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1E1E96),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        ElevatedButton.icon(
-          onPressed: () => _shareReport(title, category, urgency, location, description),
-          icon: const Icon(Icons.share_outlined),
-          label: const Text('Bagikan'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF2A23C2),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        
+        // Button Hapus - Hanya muncul untuk pelapor sendiri
+        if (isMyReport)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _showDeleteConfirmationDialog(),
+                icon: const Icon(Icons.delete_outline, color: Colors.white),
+                label: const Text('Hapus Laporan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade600,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+              ),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -398,6 +467,90 @@ Bagikan informasi ini untuk meningkatkan kesadaran keselamatan jalan bersama!'''
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal membagikan: $e')),
+      );
+    }
+  }
+
+  /// Tampilkan dialog konfirmasi sebelum hapus laporan
+  void _showDeleteConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Hapus Laporan?', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: const Text(
+            'Apakah Anda yakin ingin menghapus laporan ini? Tindakan ini tidak dapat dibatalkan.',
+            style: TextStyle(color: Colors.black87),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _deleteReport();
+              },
+              child: const Text('Hapus', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Fungsi untuk menghapus laporan
+  Future<void> _deleteReport() async {
+    try {
+      // Tampilkan loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Menghapus laporan...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // Get report data untuk verifikasi reporterId
+      final doc = await FirebaseFirestore.instance.collection('reports').doc(widget.docId).get();
+      final reporterId = doc['reporterId'] ?? '';
+
+      // Import FirebaseService untuk menggunakan method deleteReport
+      // Note: Pastikan FirebaseService sudah di-import di atas file ini
+      // Atau kita bisa langsung gunakan Firestore API di sini
+      
+      // Verifikasi hak akses
+      if (reporterId != currentUserId) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Anda tidak berhak menghapus laporan ini!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Hapus laporan
+      await FirebaseFirestore.instance.collection('reports').doc(widget.docId).delete();
+
+      // Tampilkan pesan sukses
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Laporan berhasil dihapus'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Kembali ke layar sebelumnya
+      Future.delayed(const Duration(milliseconds: 500), () {
+        Navigator.pop(context);
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Gagal menghapus laporan: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }

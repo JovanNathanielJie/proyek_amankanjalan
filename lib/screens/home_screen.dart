@@ -14,7 +14,20 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String _selectedUrgency = 'Semua';
   String _selectedCategory = 'Semua Kategori';
-  String _searchQuery = ''; 
+  String _searchQuery = '';
+
+  // Daftar kategori lengkap
+  final List<Map<String, dynamic>> _allCategories = [
+    {'name': 'Semua Kategori', 'icon': null},
+    {'name': 'Lampu Mati', 'icon': Icons.lightbulb_outline},
+    {'name': 'Area Gelap', 'icon': Icons.dark_mode_outlined},
+    {'name': 'Rawan Kecelakaan', 'icon': Icons.warning_amber_rounded},
+    {'name': 'Kemacetan', 'icon': Icons.traffic_outlined},
+    {'name': 'Jalan Rusak', 'icon': Icons.broken_image_outlined},
+    {'name': 'Rambu Rusak', 'icon': Icons.construction_outlined},
+    {'name': 'Banjir', 'icon': Icons.water_drop_outlined},
+    {'name': 'Lainnya', 'icon': Icons.more_horiz},
+  ]; 
 
   @override
   Widget build(BuildContext context) {
@@ -153,28 +166,78 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // --- FILTER URGENCY ---
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
             child: Row(
               children: [
-                _buildChip('Semua', _selectedUrgency == 'Semua', true),
-                _buildChip('Darurat', _selectedUrgency == 'Darurat', true),
-                _buildChip('Sedang', _selectedUrgency == 'Sedang', true),
-                _buildChip('Rendah', _selectedUrgency == 'Rendah', true),
+                _buildUrgencyChip('Semua', _selectedUrgency == 'Semua'),
+                _buildUrgencyChip('Darurat', _selectedUrgency == 'Darurat'),
+                _buildUrgencyChip('Sedang', _selectedUrgency == 'Sedang'),
+                _buildUrgencyChip('Rendah', _selectedUrgency == 'Rendah'),
               ],
             ),
           ),
+          
+          const SizedBox(height: 12),
+          
+          // --- LABEL KATEGORI ---
+          const Text('Semua Kategori', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54)),
           const SizedBox(height: 8),
+          
+          // --- FILTER KATEGORI (SCROLLABLE DENGAN SMOOTH PHYSICS) ---
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
             child: Row(
-              children: [
-                _buildChip('Semua Kategori', _selectedCategory == 'Semua Kategori', false),
-                _buildChip('Lampu Mati', _selectedCategory == 'Lampu Mati', false, icon: Icons.lightbulb_outline),
-                _buildChip('Area Gelap', _selectedCategory == 'Area Gelap', false, icon: Icons.dark_mode_outlined),
-                _buildChip('Rawan Kecelakaan', _selectedCategory == 'Rawan Kecelakaan', false, icon: Icons.warning_amber_rounded),
-              ],
+              children: _allCategories.map((category) {
+                final isSelected = _selectedCategory == category['name'];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedCategory = category['name'];
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFF2A23C2) : Colors.white,
+                        border: Border.all(
+                          color: isSelected ? const Color(0xFF2A23C2) : Colors.grey.shade300,
+                          width: 1.5,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (category['icon'] != null) ...[
+                            Icon(
+                              category['icon'],
+                              size: 14,
+                              color: isSelected ? Colors.white : Colors.orange,
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          Text(
+                            category['name'],
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: isSelected ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ],
@@ -182,29 +245,33 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildChip(String label, bool isSelected, bool isUrgency, {IconData? icon}) {
+  Widget _buildUrgencyChip(String label, bool isSelected) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        showCheckmark: false,
-        label: Row(
-          children: [
-            if (icon != null) ...[Icon(icon, size: 16, color: isSelected ? Colors.white : Colors.orange), const SizedBox(width: 4)],
-            Text(label),
-          ],
-        ),
-        selected: isSelected,
-        onSelected: (bool selected) {
+      child: GestureDetector(
+        onTap: () {
           setState(() {
-            if (isUrgency) { _selectedUrgency = label; } else { _selectedCategory = label; }
+            _selectedUrgency = label;
           });
         },
-        selectedColor: const Color(0xFF2A23C2),
-        labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black87),
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: isSelected ? const Color(0xFF2A23C2) : Colors.grey.shade300),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF2A23C2) : Colors.white,
+            border: Border.all(
+              color: isSelected ? const Color(0xFF2A23C2) : Colors.grey.shade300,
+              width: 1.5,
+            ),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: isSelected ? Colors.white : Colors.black87,
+            ),
+          ),
         ),
       ),
     );
@@ -274,15 +341,31 @@ class _HomeScreenState extends State<HomeScreen> {
           itemBuilder: (context, index) {
             var doc = filteredDocs[index];
             var data = doc.data() as Map<String, dynamic>;
-            Color catBgColor = Colors.blue.shade100;
-            Color catTextColor = Colors.blue.shade800;
+            Color catBgColor = Colors.grey.shade100;
+            Color catTextColor = Colors.grey.shade800;
             
+            // Styling untuk setiap kategori
             if (data['category'] == 'Rawan Kecelakaan') {
-              catBgColor = Colors.red.shade100; catTextColor = Colors.red;
+              catBgColor = Colors.red.shade100;
+              catTextColor = Colors.red;
             } else if (data['category'] == 'Area Gelap') {
-              catBgColor = Colors.purple.shade100; catTextColor = Colors.purple;
+              catBgColor = Colors.purple.shade100;
+              catTextColor = Colors.purple;
             } else if (data['category'] == 'Lampu Mati') {
-              catBgColor = Colors.orange.shade100; catTextColor = Colors.orange.shade900;
+              catBgColor = Colors.orange.shade100;
+              catTextColor = Colors.orange.shade900;
+            } else if (data['category'] == 'Kemacetan') {
+              catBgColor = Colors.blue.shade100;
+              catTextColor = Colors.blue;
+            } else if (data['category'] == 'Jalan Rusak') {
+              catBgColor = Colors.brown.shade100;
+              catTextColor = Colors.brown;
+            } else if (data['category'] == 'Rambu Rusak') {
+              catBgColor = Colors.indigo.shade100;
+              catTextColor = Colors.indigo;
+            } else if (data['category'] == 'Banjir') {
+              catBgColor = Colors.cyan.shade100;
+              catTextColor = Colors.cyan.shade900;
             }
 
             return _buildReportCard(

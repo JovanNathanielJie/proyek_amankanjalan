@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:proyek_amankanjalan/models/user_model.dart';
 
 class FirebaseService {
@@ -145,6 +146,28 @@ class FirebaseService {
       await userRef.update(updateData);
     } catch (e) {
       throw 'Gagal mengupdate profil: $e';
+    }
+  }
+
+  // ===== FIRESTORE REPORT METHODS =====
+
+  /// Hapus laporan dari Firestore
+  /// Hanya pelapor yang bisa menghapus laporan mereka sendiri
+  Future<void> deleteReport({
+    required String docId,
+    required String reporterId,
+    required String currentUserId,
+  }) async {
+    try {
+      // Verifikasi bahwa user yang melakukan delete adalah pelapor
+      if (reporterId != currentUserId) {
+        throw 'Anda tidak berhak menghapus laporan ini. Hanya pelapor yang dapat menghapus.';
+      }
+
+      // Hapus dokumen dari Firestore
+      await FirebaseFirestore.instance.collection('reports').doc(docId).delete();
+    } catch (e) {
+      throw 'Gagal menghapus laporan: $e';
     }
   }
 
