@@ -225,35 +225,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 TextFormField(
                                   controller: _phoneNumberController,
                                   keyboardType: TextInputType.phone,
-                                  // MEMBATASI INPUT MAKSIMAL 13 KARAKTER
-                                  maxLength: 13, 
-                                  // Agar input hanya menerima angka saja (mencegah spasi atau strip)
+                                  // TAMBAHAN: Memicu validasi setiap kali pengguna berinteraksi / mengetik
+                                  autovalidateMode: AutovalidateMode.onUserInteraction, 
                                   inputFormatters: [
                                     FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(13),
                                   ],
                                   decoration: InputDecoration(
                                     labelText: 'Nomor Telepon',
                                     hintText: 'Masukkan nomor telepon',
                                     prefixIcon: const Icon(Icons.phone_outlined),
-                                    // counterText: '' digunakan untuk menyembunyikan tulisan angka penghitung (misal: 0/13) di pojok kanan bawah jika dirasa mengganggu
-                                    counterText: '', 
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(
-                                        color: Colors.grey,
-                                      ),
+                                      borderSide: const BorderSide(color: Colors.grey),
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
-                                      borderSide: BorderSide(
-                                        color: Colors.grey.shade300,
-                                      ),
+                                      borderSide: BorderSide(color: Colors.grey.shade300),
                                     ),
                                     filled: true,
                                     fillColor: Colors.grey[50],
-                                    labelStyle: const TextStyle(
-                                      color: Colors.grey,
-                                    ),
+                                    labelStyle: const TextStyle(color: Colors.grey),
                                   ),
                                   onChanged: (value) {
                                     if (value.startsWith('62')) {
@@ -264,24 +256,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           TextPosition(offset: updatedValue.length),
                                         ),
                                       );
-                                    } else if (value.startsWith('+62')) {
-                                      String updatedValue = '0' + value.substring(3);
-                                      _phoneNumberController.value = TextEditingValue(
-                                        text: updatedValue,
-                                        selection: TextSelection.fromPosition(
-                                          TextPosition(offset: updatedValue.length),
-                                        ),
-                                      );
                                     }
                                   },
-                                  // VALIDASI MINIMAL 10 DAN MAKSIMAL 13 DIGIT
                                   validator: (value) {
                                     if (value == null || value.isEmpty) {
                                       return 'Nomor telepon tidak boleh kosong';
                                     }
-                                    if (!value.startsWith('08')) {
+
+                                    // --- LOGIKA VALIDASI REAL-TIME ---
+                                    // Jika baru mengetik 1 angka dan itu bukan '0', langsung error
+                                    if (value.length == 1 && value != '0') {
                                       return 'Nomor telepon harus diawali dengan 08';
                                     }
+                                    // Jika sudah mengetik 2 angka atau lebih dan bukan '08', langsung error
+                                    if (value.length >= 2 && !value.startsWith('08')) {
+                                      return 'Nomor telepon harus diawali dengan 08';
+                                    }
+                                    // ---------------------------------
+
                                     if (value.length < 10) {
                                       return 'Nomor telepon minimal 10 digit';
                                     }
@@ -363,7 +355,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   keyboardType: TextInputType.emailAddress,
                                   decoration: InputDecoration(
                                     labelText: 'Email',
-                                    hintText: 'Masukkan email (@gmail.com, @yahoo.com, dll)',
+                                    hintText: 'Masukkan email',
                                     prefixIcon: const Icon(Icons.email_outlined),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),

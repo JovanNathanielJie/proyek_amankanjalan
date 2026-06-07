@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:geocoding/geocoding.dart';
 import 'dart:ui' as ui;
 
 class MapScreen extends StatefulWidget {
@@ -53,22 +54,108 @@ class _MapScreenState extends State<MapScreen> {
     if (coords.isEmpty) return null;
     
     try {
-      // Bersihkan koordinat dari spasi dan simbol ekstra
-      final cleanCoords = coords.replaceAll(RegExp("[°'\"NSEWnsew]"), '').trim();
-      
-      final parts = cleanCoords.split(RegExp(r'[,\s]+'));
-      if (parts.length >= 2) {
-        double lat = double.parse(parts[0].trim());
-        double lng = double.parse(parts[1].trim());
-        
-        // Validasi range koordinat
-        if (lat.abs() <= 90 && lng.abs() <= 180) {
-          return LatLng(lat, lng);
+      // Coba format desimal sederhana terlebih dahulu
+      final simpleParts = coords.split(RegExp(r'[;,]'));
+      if (simpleParts.length >= 2) {
+        try {
+          double lat = double.parse(simpleParts[0].replaceAll(RegExp('[^0-9+\-\.]'), '').trim());
+          double lng = double.parse(simpleParts[1].replaceAll(RegExp('[^0-9+\-\.]'), '').trim());
+          if (lat.abs() <= 90 && lng.abs() <= 180) return LatLng(lat, lng);
+        } catch (_) {
+          // lanjut ke parser DMS
+        }
+      }
+
+      // Jika ada simbol derajat atau huruf NSEW, coba parse DMS (contoh: 2°57'37.5"S 104°44'16.4"E)
+      if (coords.contains('°') || RegExp(r'[NSEWnsew]').hasMatch(coords)) {
+        // Pisahkan dua komponen (lat, lon) berdasarkan huruf arah atau koma
+        // Cobalah split dengan ruang yang memisahkan dua bagian
+        List<String> parts = [];
+        // Jika ada koma/titik koma gunakan itu
+        if (coords.contains(',')) {
+          parts = coords.split(',');
+        } else {
+          // Split by patterns that separate lat and lon (mis. "S " sebelum lon)
+          final match = RegExp(r'([NS].*?)[,\s]+([EW].*)', caseSensitive: false).firstMatch(coords);
+          if (match != null && match.groupCount >= 2) {
+            parts = [match.group(1)!, match.group(2)!];
+          } else {
+            // Fall back: split by whitespace into two halves
+            final tokens = coords.trim().split(RegExp(r'\s+'));
+            if (tokens.length >= 2) {
+              final half = (tokens.length / 2).ceil();
+              parts = [tokens.sublist(0, half).join(' '), tokens.sublist(half).join(' ')];
+            }
+          }
+        }
+
+        if (parts.length >= 2) {
+          double? lat = _dmsToDecimal(parts[0]);
+          double? lng = _dmsToDecimal(parts[1]);
+          if (lat != null && lng != null) return LatLng(lat, lng);
         }
       }
     } catch (e) {
       // Koordinat tidak valid
     }
+    return null;
+  }
+
+  // Cache untuk hasil geocoding alamat agar tidak memanggil ulang API berulang
+  final Map<String, LatLng> _geocodeCache = {};
+  final Set<String> _geocodingInProgress = {};
+
+  Future<void> _geocodeAndCache(String docId, String address) async {
+    if (address.trim().isEmpty) return;
+    if (_geocodeCache.containsKey(docId) || _geocodingInProgress.contains(docId)) return;
+    _geocodingInProgress.add(docId);
+    try {
+      List<Location> locations = await locationFromAddress(address);
+      if (locations.isNotEmpty) {
+        final loc = locations.first;
+        _geocodeCache[docId] = LatLng(loc.latitude, loc.longitude);
+        if (mounted) setState(() {});
+      }
+    } catch (e) {
+      // ignore geocoding errors silently
+    } finally {
+      _geocodingInProgress.remove(docId);
+    }
+  }
+
+  double? _dmsToDecimal(String part) {
+    try {
+      String p = part.trim();
+      // Ambil arah jika ada
+      String dir = '';
+      final dirMatch = RegExp(r'([NSEWnsew])').firstMatch(p);
+      if (dirMatch != null) {
+        dir = dirMatch.group(1)!.toUpperCase();
+      }
+
+      // Hapus karakter yang bukan angka, tanda minus, titik, derajat, menit, detik, atau spasi
+      p = p.replaceAll('\u00B0', '°');
+
+      // Pattern DMS: 12°34'56.7"S  or 12 34 56 S
+        final dmsMatch = RegExp(r'''(\d+(?:\.\d+)?)\s*[°\s]\s*(\d+(?:\.\d+)?)?\s*['\s]?\s*(\d+(?:\.\d+)?)?\s*"?\s*([NSEWnsew])?''',
+            caseSensitive: false)
+          .firstMatch(p);
+
+      if (dmsMatch != null) {
+        final deg = double.parse(dmsMatch.group(1)!);
+        final min = dmsMatch.group(2) != null && dmsMatch.group(2)!.isNotEmpty ? double.parse(dmsMatch.group(2)!) : 0.0;
+        final sec = dmsMatch.group(3) != null && dmsMatch.group(3)!.isNotEmpty ? double.parse(dmsMatch.group(3)!) : 0.0;
+        final direction = (dmsMatch.group(4) ?? dir).toUpperCase();
+
+        double dec = deg + (min / 60.0) + (sec / 3600.0);
+        if (direction == 'S' || direction == 'W') dec = -dec;
+        return dec;
+      }
+
+      // Jika tidak cocok DMS, coba parse langsung angka yang ada
+      final numMatch = RegExp(r'[-+]?[0-9]*\.?[0-9]+').firstMatch(p);
+      if (numMatch != null) return double.parse(numMatch.group(0)!);
+    } catch (_) {}
     return null;
   }
 
@@ -92,11 +179,13 @@ class _MapScreenState extends State<MapScreen> {
             // Membangun daftar titik (markers) untuk peta
             List<Marker> mapMarkers = [];
             
-            if (!isLoading) {
+              if (!isLoading) {
               for (var doc in docs) {
                 var data = doc.data() as Map<String, dynamic>;
                 String coordsStr = data['coordinates'] ?? '';
+                String locationText = data['location'] ?? '';
                 String urgency = data['urgency'] ?? 'RENDAH';
+                String category = data['category'] ?? 'Umum';
                 String title = data['title'] ?? 'Laporan';
 
                 // Tentukan warna pin
@@ -104,22 +193,32 @@ class _MapScreenState extends State<MapScreen> {
                 if (urgency.toUpperCase() == 'DARURAT') markerColor = Colors.red;
                 if (urgency.toUpperCase() == 'SEDANG') markerColor = Colors.orange;
 
-                // Coba konversi teks ke koordinat peta
+                // Coba konversi teks ke koordinat peta dari field 'coordinates'
                 LatLng? position = _parseCoordinates(coordsStr);
+
+                // Jika tidak ada coordinates tetapi ada lokasi, coba gunakan cache geocoding
+                if (position == null && locationText.isNotEmpty) {
+                  if (_geocodeCache.containsKey(doc.id)) {
+                    position = _geocodeCache[doc.id];
+                  } else {
+                    // Mulai proses geocoding secara async (akan memicu setState ketika selesai)
+                    _geocodeAndCache(doc.id, locationText);
+                  }
+                }
 
                 if (position != null) {
                   mapMarkers.add(
-                    Marker(
-                      point: position,
-                      width: 80,  // Diperbesar dari 60
-                      height: 90, // Diperbesar dari 70
+                      Marker(
+                        point: position,
+                        width: 44,
+                        height: 56,
                       child: GestureDetector(
                         onTap: () {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text(title), duration: const Duration(seconds: 1)),
                           );
                         },
-                        child: _buildCustomMarker(markerColor, urgency, title),
+                        child: _buildCustomMarker(markerColor, urgency, title, category),
                       ),
                     ),
                   );
@@ -364,68 +463,77 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   /// Widget untuk custom marker sesuai tingkat urgensi
-  Widget _buildCustomMarker(Color color, String urgency, String title) {
+  Widget _buildCustomMarker(Color color, String urgency, String title, String category) {
     IconData icon = Icons.location_on;
-    
-    // Tentukan icon berdasarkan urgensi
+
+    // Tentukan icon berdasarkan kategori jika tersedia
+    final cat = category.toLowerCase();
+    if (cat.contains('lampu') || cat.contains('lampu mati')) {
+      icon = Icons.lightbulb;
+    } else if (cat.contains('banjir') || cat.contains('air')) {
+      icon = Icons.water_drop;
+    } else if (cat.contains('rawan') || cat.contains('kecelakaan')) {
+      icon = Icons.warning_amber_rounded;
+    } else if (cat.contains('gelap')) {
+      icon = Icons.dark_mode;
+    } else if (cat.contains('jalan') && cat.contains('berlobang')) {
+      icon = Icons.report; // fallback for pothole-like issues
+    }
+
+    // Override icon for urgency levels when appropriate
     if (urgency.toUpperCase() == 'DARURAT') {
       icon = Icons.priority_high; // Tanda seru
     } else if (urgency.toUpperCase() == 'SEDANG') {
-      icon = Icons.remove; // Garis/strip
+      // keep category icon but you could optionally change it
     }
 
     return Stack(
       alignment: Alignment.center,
       children: [
-        // Glow background layer
+        // Subtle glow (smaller)
         Positioned(
-          top: 8,
+          top: 6,
           child: Container(
-            width: 64,  // Diperbesar dari 54
-            height: 64,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: color.withValues(alpha: 0.5),
-                  blurRadius: 16,
-                  spreadRadius: 4,
-                ),
-                BoxShadow(
-                  color: color.withValues(alpha: 0.3),
-                  blurRadius: 24,
-                  spreadRadius: 8,
+                  color: color.withOpacity(0.35),
+                  blurRadius: 8,
+                  spreadRadius: 2,
                 ),
               ],
             ),
           ),
         ),
-        // Main marker circle
+        // Main marker circle (smaller)
         Container(
-          width: 56,  // Diperbesar dari 48
-          height: 56,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 3),
+            border: Border.all(color: Colors.white, width: 2),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 6,
-                spreadRadius: 1,
+                color: Colors.black.withOpacity(0.25),
+                blurRadius: 4,
+                spreadRadius: 0.5,
               ),
             ],
           ),
           child: Center(
-            child: Icon(icon, color: Colors.white, size: 28, weight: 700),  // Diperbesar dari 26
+            child: Icon(icon, color: Colors.white, size: 16),
           ),
         ),
-        // Pointer ke bawah
+        // Small pointer
         Positioned(
-          top: 32,
+          top: 28,
           child: CustomPaint(
             painter: _TrianglePainter(color),
-            size: const Size(28, 14),  // Diperbesar dari 24, 12
+            size: const Size(18, 9),
           ),
         ),
       ],

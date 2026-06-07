@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:geocoding/geocoding.dart';
 
 class AddReportScreen extends StatefulWidget {
   const AddReportScreen({Key? key}) : super(key: key);
@@ -144,11 +145,25 @@ class _AddReportScreenState extends State<AddReportScreen> {
 
       // Gunakan kategori yang dipilih user
       String category = _selectedCategory;
+      // Coba geocoding alamat sebelum menyimpan agar langsung tersimpan koordinat
+      String coordinates = '';
+      try {
+        if (_locationController.text.trim().isNotEmpty) {
+          List<Location> locs = await locationFromAddress(_locationController.text.trim());
+          if (locs.isNotEmpty) {
+            final l = locs.first;
+            coordinates = '${l.latitude},${l.longitude}';
+          }
+        }
+      } catch (e) {
+        // ignore geocoding failures; simpan tanpa coordinates
+      }
 
       await FirebaseFirestore.instance.collection('reports').add({
         'title': _titleController.text.trim(),
         'description': _descController.text.trim(),
         'location': _locationController.text.trim(),
+        'coordinates': coordinates,
         'urgency': _selectedUrgency,
         'category': category,
         'imageUrl': imageUrl,

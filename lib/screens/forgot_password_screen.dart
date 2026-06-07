@@ -187,7 +187,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               keyboardType: TextInputType.emailAddress,
                               decoration: InputDecoration(
                                 labelText: 'Email',
-                                hintText: 'Masukkan email Anda (@gmail.com, @yahoo.com, dll)',
+                                hintText: 'Masukkan email Anda',
                                 prefixIcon: const Icon(Icons.email_outlined),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),

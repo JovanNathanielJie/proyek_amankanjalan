@@ -143,7 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               keyboardType: TextInputType.emailAddress,
                               decoration: InputDecoration(
                                 labelText: 'Email',
-                                hintText: 'Masukkan email (@gmail.com, @yahoo.com, dll)',
+                                hintText: 'Masukkan email',
                                 prefixIcon: const Icon(Icons.email_outlined),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                 filled: true,

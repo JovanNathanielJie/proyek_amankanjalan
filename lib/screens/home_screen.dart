@@ -15,6 +15,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedUrgency = 'Semua';
   String _selectedCategory = 'Semua Kategori';
   String _searchQuery = '';
+  final ScrollController _categoryScrollController = ScrollController();
 
   // Daftar kategori lengkap
   final List<Map<String, dynamic>> _allCategories = [
@@ -163,65 +164,74 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildFilterChips() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // --- FILTER URGENCY ---
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: [
-                _buildUrgencyChip('Semua', _selectedUrgency == 'Semua'),
-                _buildUrgencyChip('Darurat', _selectedUrgency == 'Darurat'),
-                _buildUrgencyChip('Sedang', _selectedUrgency == 'Sedang'),
-                _buildUrgencyChip('Rendah', _selectedUrgency == 'Rendah'),
-              ],
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // --- FILTER URGENCY ---
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          // Gunakan AlwaysScrollableScrollPhysics agar tetap terasa ada scroll meski konten sedikit
+          physics: const AlwaysScrollableScrollPhysics(), 
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              _buildUrgencyChip('Semua', _selectedUrgency == 'Semua'),
+              _buildUrgencyChip('Darurat', _selectedUrgency == 'Darurat'),
+              _buildUrgencyChip('Sedang', _selectedUrgency == 'Sedang'),
+              _buildUrgencyChip('Rendah', _selectedUrgency == 'Rendah'),
+            ],
           ),
-          
-          const SizedBox(height: 12),
-          
-          // --- LABEL KATEGORI ---
-          const Text('Semua Kategori', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54)),
-          const SizedBox(height: 8),
-          
-          // --- FILTER KATEGORI (SCROLLABLE DENGAN SMOOTH PHYSICS) ---
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: _allCategories.map((category) {
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // --- LABEL KATEGORI ---
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text('Semua Kategori', 
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54)
+          ),
+        ),
+        const SizedBox(height: 8),
+        
+        // --- FILTER KATEGORI (HORIZONTAL SCROLL DENGAN SCROLLBAR) ---
+        SizedBox(
+          height: 72, // lebih tinggi agar ada jarak antara chips dan scrollbar
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 6), // beri ruang di bawah
+            child: Scrollbar(
+              controller: _categoryScrollController,
+              thumbVisibility: true,
+              thickness: 8,
+              radius: const Radius.circular(8),
+              child: ListView.separated(
+                controller: _categoryScrollController,
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                itemCount: _allCategories.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final category = _allCategories[index];
                 final isSelected = _selectedCategory == category['name'];
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedCategory = category['name'];
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFF2A23C2) : Colors.white,
-                        border: Border.all(
-                          color: isSelected ? const Color(0xFF2A23C2) : Colors.grey.shade300,
-                          width: 1.5,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
+
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedCategory = category['name']),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFF2A23C2) : Colors.white,
+                      border: Border.all(
+                        color: isSelected ? const Color(0xFF2A23C2) : Colors.grey.shade300,
+                        width: 1.5,
                       ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Center(
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
                         children: [
                           if (category['icon'] != null) ...[
-                            Icon(
-                              category['icon'],
-                              size: 14,
-                              color: isSelected ? Colors.white : Colors.orange,
-                            ),
+                            Icon(category['icon'], size: 14, color: isSelected ? Colors.white : Colors.orange),
                             const SizedBox(width: 6),
                           ],
                           Text(
@@ -237,12 +247,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 );
-              }).toList(),
+              },
             ),
           ),
-        ],
-      ),
+        ),
+        ),
+      ],
     );
+  }
+
+  @override
+  void dispose() {
+    _categoryScrollController.dispose();
+    super.dispose();
   }
 
   Widget _buildUrgencyChip(String label, bool isSelected) {
