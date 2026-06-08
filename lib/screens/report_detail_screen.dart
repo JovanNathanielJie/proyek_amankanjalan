@@ -3,6 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
+// Tambahan Import untuk Mini Map
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'edit_report_screen.dart'; 
 
 class ReportDetailScreen extends StatefulWidget {
@@ -15,12 +18,9 @@ class ReportDetailScreen extends StatefulWidget {
 }
 
 class _ReportDetailScreenState extends State<ReportDetailScreen> {
-  // Ambil user ID yang sedang login secara dinamis
   final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
 
-  // --- FUNGSI BUKA PETA YANG SUDAH DIPERBARUI (MENDUKUNG SEMUA FORMAT) ---
   Future<void> _openMapApp(String query) async {
-    // 1. Jika user menginput link berawalan http atau https langsung buka browsernya
     if (query.startsWith('http')) {
       final Uri uri = Uri.parse(query);
       if (await canLaunchUrl(uri)) {
@@ -29,14 +29,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
       }
     }
 
-    // 2. Jika input berupa Alamat, Koordinat Desimal, atau Koordinat Derajat (DMS)
-    // Kita ubah teksnya menjadi format pencarian URL yang aman (URL Encode)
     final String encodedQuery = Uri.encodeComponent(query);
-    
-    // Default format untuk Android (menggunakan query pencarian)
     String url = "geo:0,0?q=$encodedQuery"; 
     
-    // Jika perangkat adalah iOS, gunakan format Apple Maps
     if (Theme.of(context).platform == TargetPlatform.iOS) {
       url = "maps://?q=$encodedQuery";
     }
@@ -45,17 +40,17 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
 
     try {
       if (await canLaunchUrl(uri)) {
-        // Coba buka aplikasi peta bawaan HP (Google Maps / Apple Maps)
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
-        // BACKUP: Jika di HP tidak ada aplikasi peta, buka lewat website Google Maps
         final Uri fallbackUri = Uri.parse("https://www.google.com/maps/search/?api=1&query=$encodedQuery");
         await launchUrl(fallbackUri, mode: LaunchMode.externalApplication);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal membuka peta: $e'))
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal membuka peta: $e'))
+        );
+      }
     }
   }
 
@@ -69,6 +64,21 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     if (diff.inHours > 0) return '${diff.inHours} jam lalu';
     if (diff.inMinutes > 0) return '${diff.inMinutes} menit lalu';
     return 'Baru saja';
+  }
+
+  // Helper untuk mengubah string "lat,lng" dari database menjadi LatLng
+  LatLng? _parseCoordinates(String coords) {
+    try {
+      final parts = coords.split(',');
+      if (parts.length >= 2) {
+        double lat = double.parse(parts[0].trim());
+        double lng = double.parse(parts[1].trim());
+        return LatLng(lat, lng);
+      }
+    } catch (e) {
+      return null; // Gagal parse, kembalikan null
+    }
+    return null;
   }
 
   @override
@@ -105,10 +115,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
           List<dynamic> supportedBy = data['supportedBy'] ?? [];
           bool isSupportedByMe = supportedBy.contains(currentUserId);
           
-          // Mengambil teks dari koordinat, atau gunakan alamat jika kosong
-          String coordinates = data['coordinates'] ?? location; 
-          
-          // Cek apakah laporan ini milik user yang sedang login
+          String coordinates = data['coordinates'] ?? ''; 
           bool isMyReport = currentUserId == reporterId;
 
           return SafeArea(
@@ -130,7 +137,10 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                         const SizedBox(height: 16),
                         _buildDescriptionCard(description),
                         const SizedBox(height: 16),
-                        _buildCoordinatesCard(coordinates),
+                        
+                        // Pass location (Alamat) dan coordinates (Koordinat murni)
+                        _buildMapAndLocationCard(location, coordinates),
+                        
                         const SizedBox(height: 16),
                         _buildSupportCard(upvotes),
                         const SizedBox(height: 24),
@@ -161,7 +171,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                 onTap: () => Navigator.pop(context),
                 child: const Icon(Icons.arrow_back, color: Colors.white),
               ),
-              // TOMBOL EDIT MUNCUL JIKA INI LAPORAN SAYA
               if (isMyReport)
                 IconButton(
                   icon: const Icon(Icons.edit, color: Colors.white),
@@ -209,14 +218,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
           ),
           const SizedBox(height: 16),
           Text(title, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.location_on_outlined, color: Colors.white70, size: 16),
-              const SizedBox(width: 4),
-              Expanded(child: Text(location, style: const TextStyle(color: Colors.white70, fontSize: 14))),
-            ],
-          ),
         ],
       ),
     );
@@ -285,50 +286,102 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     );
   }
 
-  Widget _buildCoordinatesCard(String coordinates) {
+  // KARTU LOKASI BARU YANG MENAMPILKAN MINI MAP & ALAMAT
+  Widget _buildMapAndLocationCard(String locationText, String coordinatesStr) {
+    // Coba konversi string ke titik LatLng
+    LatLng? point = _parseCoordinates(coordinatesStr);
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () => _openMapApp(coordinates),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Lokasi / Koordinat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: const Color(0xFFE6E6FA), borderRadius: BorderRadius.circular(8)),
-                child: Row(
-                  children: [
-                    const Icon(Icons.near_me, color: Color(0xFF2A23C2), size: 18),
-                    const SizedBox(width: 8),
-                    // Dibungkus Expanded agar url yang kepanjangan tidak melebihi layar
-                    Expanded(
-                      child: Text(
-                        coordinates, 
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Titik Lokasi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 12),
+            
+            // 1. TAMPILKAN MINI MAP JIKA KOORDINAT VALID
+            if (point != null) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  height: 150,
+                  width: double.infinity,
+                  child: IgnorePointer( // Mematikan scroll map agar tidak bentrok dengan scroll halaman
+                    child: FlutterMap(
+                      options: MapOptions(
+                        initialCenter: point,
+                        initialZoom: 15.0,
                       ),
+                      children: [
+                        TileLayer(
+                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'com.amankanjalan.app',
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: point,
+                              width: 40,
+                              height: 40,
+                              child: const Icon(Icons.location_pin, color: Colors.red, size: 40),
+                              alignment: Alignment.topCenter,
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    const Text('Buka Peta', style: TextStyle(fontSize: 10, color: Color(0xFF2A23C2), fontWeight: FontWeight.bold)),
-                  ],
+                  ),
                 ),
               ),
+              const SizedBox(height: 12),
             ],
-          ),
+
+            // 2. TAMPILKAN TEKS ALAMAT MANUSIA
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.location_on, color: Color(0xFF2A23C2), size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    locationText,
+                    style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // 3. TOMBOL BUKA GOOGLE MAPS
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  // Prioritaskan koordinat jika ada, kalau kosong pakai teks alamat
+                  String searchQuery = coordinatesStr.isNotEmpty ? coordinatesStr : locationText;
+                  _openMapApp(searchQuery);
+                },
+                icon: const Icon(Icons.map_outlined, size: 18),
+                label: const Text('Buka di Aplikasi Peta'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF1E1E96),
+                  side: const BorderSide(color: Color(0xFF1E1E96)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildSupportCard(int upvotes) {
-    final int targetSupport = 50; // Target dukungan untuk laporan ditangani
+    final int targetSupport = 50; 
     final double progress = upvotes >= targetSupport ? 1.0 : upvotes / targetSupport;
 
     return Card(
@@ -341,8 +394,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
           children: [
             const Text('Dukungan Warga', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
-            
-            // Progress Bar
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: LinearProgressIndicator(
@@ -355,28 +406,15 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            
-            // Info Dukungan
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '$upvotes warga mendukung',
-                  style: const TextStyle(color: Colors.black87, fontSize: 13, fontWeight: FontWeight.w500),
-                ),
-                Text(
-                  '${(progress * 100).toStringAsFixed(0)}%',
-                  style: const TextStyle(color: Color(0xFF2A23C2), fontSize: 13, fontWeight: FontWeight.bold),
-                ),
+                Text('$upvotes warga mendukung', style: const TextStyle(color: Colors.black87, fontSize: 13, fontWeight: FontWeight.w500)),
+                Text('${(progress * 100).toStringAsFixed(0)}%', style: const TextStyle(color: Color(0xFF2A23C2), fontSize: 13, fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 8),
-            
-            // Target
-            Text(
-              'Target $targetSupport dukungan',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-            ),
+            Text('Target $targetSupport dukungan', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
           ],
         ),
       ),
@@ -386,7 +424,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   Widget _buildBottomActions(int upvotes, bool isSupportedByMe, String title, String category, String urgency, String location, String description, bool isMyReport, String reporterId) {
     return Column(
       children: [
-        // Row untuk Dukung dan Bagikan
         Row(
           children: [
             Expanded(
@@ -403,10 +440,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                   backgroundColor: const Color(0xFF1E1E96),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: Text(
-                  isSupportedByMe ? 'Batalkan Dukungan' : 'Dukung',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                ),
+                child: Text(isSupportedByMe ? 'Batalkan Dukungan' : 'Dukung', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ),
             const SizedBox(width: 12),
@@ -423,8 +457,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
             ),
           ],
         ),
-        
-        // Button Hapus - Hanya muncul untuk pelapor sendiri
         if (isMyReport)
           Padding(
             padding: const EdgeInsets.only(top: 12),
@@ -445,7 +477,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     );
   }
 
-  /// Fungsi untuk membagikan laporan ke aplikasi lain
   Future<void> _shareReport(String title, String category, String urgency, String location, String description) async {
     final String shareMessage = '''🚨 Laporan AmankanJalan
 
@@ -460,28 +491,21 @@ $description
 Bagikan informasi ini untuk meningkatkan kesadaran keselamatan jalan bersama!''';
 
     try {
-      await Share.share(
-        shareMessage,
-        subject: 'Laporan AmankanJalan: $title',
-      );
+      await Share.share(shareMessage, subject: 'Laporan AmankanJalan: $title');
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal membagikan: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal membagikan: $e')));
+      }
     }
   }
 
-  /// Tampilkan dialog konfirmasi sebelum hapus laporan
   void _showDeleteConfirmationDialog() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Hapus Laporan?', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: const Text(
-            'Apakah Anda yakin ingin menghapus laporan ini? Tindakan ini tidak dapat dibatalkan.',
-            style: TextStyle(color: Colors.black87),
-          ),
+          content: const Text('Apakah Anda yakin ingin menghapus laporan ini? Tindakan ini tidak dapat dibatalkan.', style: TextStyle(color: Colors.black87)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -500,58 +524,32 @@ Bagikan informasi ini untuk meningkatkan kesadaran keselamatan jalan bersama!'''
     );
   }
 
-  /// Fungsi untuk menghapus laporan
   Future<void> _deleteReport() async {
     try {
-      // Tampilkan loading indicator
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Menghapus laporan...'),
-          duration: Duration(seconds: 2),
-        ),
+        const SnackBar(content: Text('Menghapus laporan...'), duration: Duration(seconds: 2)),
       );
 
-      // Get report data untuk verifikasi reporterId
       final doc = await FirebaseFirestore.instance.collection('reports').doc(widget.docId).get();
       final reporterId = doc['reporterId'] ?? '';
 
-      // Import FirebaseService untuk menggunakan method deleteReport
-      // Note: Pastikan FirebaseService sudah di-import di atas file ini
-      // Atau kita bisa langsung gunakan Firestore API di sini
-      
-      // Verifikasi hak akses
       if (reporterId != currentUserId) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('❌ Anda tidak berhak menghapus laporan ini!'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('❌ Anda tidak berhak menghapus laporan ini!'), backgroundColor: Colors.red));
+        }
         return;
       }
 
-      // Hapus laporan
       await FirebaseFirestore.instance.collection('reports').doc(widget.docId).delete();
 
-      // Tampilkan pesan sukses
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Laporan berhasil dihapus'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      // Kembali ke layar sebelumnya
-      Future.delayed(const Duration(milliseconds: 500), () {
-        Navigator.pop(context);
-      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Laporan berhasil dihapus'), backgroundColor: Colors.green));
+        Future.delayed(const Duration(milliseconds: 500), () => Navigator.pop(context));
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Gagal menghapus laporan: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ Gagal menghapus laporan: $e'), backgroundColor: Colors.red));
+      }
     }
   }
 }
