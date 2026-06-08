@@ -3,6 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
+// Tambahan untuk Base64
+import 'dart:convert';
+import 'dart:typed_data';
 // Tambahan Import untuk Mini Map
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -21,14 +24,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
 
   Future<void> _openMapApp(String query) async {
-    if (query.startsWith('http')) {
-      final Uri uri = Uri.parse(query);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-        return;
-      }
-    }
-
     final String encodedQuery = Uri.encodeComponent(query);
     String url = "geo:0,0?q=$encodedQuery"; 
     
@@ -36,20 +31,15 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
       url = "maps://?q=$encodedQuery";
     }
 
-    final Uri uri = Uri.parse(url);
-
     try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (await canLaunchUrl(Uri.parse(url))) {
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
       } else {
-        final Uri fallbackUri = Uri.parse("https://www.google.com/maps/search/?api=1&query=$encodedQuery");
-        await launchUrl(fallbackUri, mode: LaunchMode.externalApplication);
+        await launchUrl(Uri.parse("https://www.google.com/maps/search/?api=1&query=$encodedQuery"), mode: LaunchMode.externalApplication);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal membuka peta: $e'))
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal membuka peta: $e')));
       }
     }
   }
@@ -76,7 +66,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
         return LatLng(lat, lng);
       }
     } catch (e) {
-      return null; // Gagal parse, kembalikan null
+      return null;
     }
     return null;
   }
@@ -107,7 +97,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
           String status = data['status'] ?? 'Aktif';
           String reporterId = data['reporterId'] ?? '';
           
-          String? imageUrl = data['imageUrl'];
+          String imageBase64 = data['imageUrl'] ?? ''; // Membaca data Base64
           String reporterName = data['reporterName'] ?? 'Anonim';
           Timestamp? timestamp = data['timestamp'] as Timestamp?;
           String timeAgo = _getTimeAgo(timestamp);
@@ -128,8 +118,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (imageUrl != null && imageUrl.isNotEmpty) ...[
-                          _buildPhotoCard(imageUrl),
+                        // RENDER FOTO BASE64
+                        if (imageBase64.isNotEmpty) ...[
+                          _buildPhotoCard(imageBase64),
                           const SizedBox(height: 16),
                         ],
                         
@@ -223,10 +214,19 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     );
   }
 
-  Widget _buildPhotoCard(String imageUrl) {
+  // LOGIKA BARU UNTUK MERENDER BASE64
+  Widget _buildPhotoCard(String imageBase64) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: Image.network(imageUrl, height: 200, width: double.infinity, fit: BoxFit.cover),
+      child: Image.memory(
+        base64Decode(imageBase64), 
+        height: 200, 
+        width: double.infinity, 
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          height: 200, color: Colors.grey.shade300, child: const Icon(Icons.broken_image, color: Colors.grey),
+        ),
+      ),
     );
   }
 
@@ -288,7 +288,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
 
   // KARTU LOKASI BARU YANG MENAMPILKAN MINI MAP & ALAMAT
   Widget _buildMapAndLocationCard(String locationText, String coordinatesStr) {
-    // Coba konversi string ke titik LatLng
     LatLng? point = _parseCoordinates(coordinatesStr);
 
     return Card(
@@ -302,14 +301,14 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
             const Text('Titik Lokasi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
             
-            // 1. TAMPILKAN MINI MAP JIKA KOORDINAT VALID
+            // TAMPILKAN MINI MAP JIKA KOORDINAT VALID
             if (point != null) ...[
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: SizedBox(
                   height: 150,
                   width: double.infinity,
-                  child: IgnorePointer( // Mematikan scroll map agar tidak bentrok dengan scroll halaman
+                  child: IgnorePointer(
                     child: FlutterMap(
                       options: MapOptions(
                         initialCenter: point,
@@ -339,7 +338,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
               const SizedBox(height: 12),
             ],
 
-            // 2. TAMPILKAN TEKS ALAMAT MANUSIA
+            // TAMPILKAN TEKS ALAMAT MANUSIA
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -355,12 +354,10 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 3. TOMBOL BUKA GOOGLE MAPS
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () {
-                  // Prioritaskan koordinat jika ada, kalau kosong pakai teks alamat
                   String searchQuery = coordinatesStr.isNotEmpty ? coordinatesStr : locationText;
                   _openMapApp(searchQuery);
                 },

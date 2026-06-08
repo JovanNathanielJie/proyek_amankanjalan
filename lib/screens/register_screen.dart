@@ -111,10 +111,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF223199),
-              Color(0xFF2563EB),
-            ],
+            colors: [Color(0xFF223199), Color(0xFF2563EB)],
           ),
         ),
         child: SafeArea(
@@ -122,7 +119,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
             children: [
               // Header transparan di atas
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 15,
+                ),
                 child: Row(
                   children: [
                     IconButton(
@@ -190,7 +190,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   decoration: InputDecoration(
                                     labelText: 'Nama Lengkap',
                                     hintText: 'Masukkan nama lengkap',
-                                    prefixIcon: const Icon(Icons.person_outline),
+                                    prefixIcon: const Icon(
+                                      Icons.person_outline,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
                                       borderSide: const BorderSide(
@@ -226,7 +228,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   controller: _phoneNumberController,
                                   keyboardType: TextInputType.phone,
                                   // TAMBAHAN: Memicu validasi setiap kali pengguna berinteraksi / mengetik
-                                  autovalidateMode: AutovalidateMode.onUserInteraction, 
+                                  autovalidateMode:
+                                      AutovalidateMode.onUserInteraction,
                                   inputFormatters: [
                                     FilteringTextInputFormatter.digitsOnly,
                                     LengthLimitingTextInputFormatter(13),
@@ -234,26 +237,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   decoration: InputDecoration(
                                     labelText: 'Nomor Telepon',
                                     hintText: 'Masukkan nomor telepon',
-                                    prefixIcon: const Icon(Icons.phone_outlined),
+                                    prefixIcon: const Icon(
+                                      Icons.phone_outlined,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(color: Colors.grey),
+                                      borderSide: const BorderSide(
+                                        color: Colors.grey,
+                                      ),
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
-                                      borderSide: BorderSide(color: Colors.grey.shade300),
+                                      borderSide: BorderSide(
+                                        color: Colors.grey.shade300,
+                                      ),
                                     ),
                                     filled: true,
                                     fillColor: Colors.grey[50],
-                                    labelStyle: const TextStyle(color: Colors.grey),
+                                    labelStyle: const TextStyle(
+                                      color: Colors.grey,
+                                    ),
                                   ),
                                   onChanged: (value) {
                                     if (value.startsWith('62')) {
-                                      String updatedValue = '0' + value.substring(2);
-                                      _phoneNumberController.value = TextEditingValue(
+                                      String updatedValue =
+                                          '0' + value.substring(2);
+                                      _phoneNumberController
+                                          .value = TextEditingValue(
                                         text: updatedValue,
                                         selection: TextSelection.fromPosition(
-                                          TextPosition(offset: updatedValue.length),
+                                          TextPosition(
+                                            offset: updatedValue.length,
+                                          ),
                                         ),
                                       );
                                     }
@@ -269,7 +284,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       return 'Nomor telepon harus diawali dengan 08';
                                     }
                                     // Jika sudah mengetik 2 angka atau lebih dan bukan '08', langsung error
-                                    if (value.length >= 2 && !value.startsWith('08')) {
+                                    if (value.length >= 2 &&
+                                        !value.startsWith('08')) {
                                       return 'Nomor telepon harus diawali dengan 08';
                                     }
                                     // ---------------------------------
@@ -283,15 +299,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     return null;
                                   },
                                 ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  'Diperlukan untuk verifikasi akun jika lupa password',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey[600],
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
                                 const SizedBox(height: 15),
 
                                 // Username Field
@@ -300,7 +307,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   decoration: InputDecoration(
                                     labelText: 'Username',
                                     hintText: 'Masukkan username',
-                                    prefixIcon: const Icon(Icons.person_outline),
+                                    prefixIcon: const Icon(
+                                      Icons.person_outline,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
                                       borderSide: const BorderSide(
@@ -332,10 +341,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 const SizedBox(height: 20),
 
                                 // Divider
-                                Divider(
-                                  color: Colors.grey.shade300,
-                                  height: 1,
-                                ),
+                                Divider(color: Colors.grey.shade300, height: 1),
                                 const SizedBox(height: 20),
 
                                 // Keamanan Akun Section
@@ -356,7 +362,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   decoration: InputDecoration(
                                     labelText: 'Email',
                                     hintText: 'Masukkan email',
-                                    prefixIcon: const Icon(Icons.email_outlined),
+                                    prefixIcon: const Icon(
+                                      Icons.email_outlined,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
                                       borderSide: const BorderSide(
@@ -375,7 +383,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       color: Colors.grey,
                                     ),
                                   ),
-                                  validator: (value) => EmailValidator.validateEmail(value),
+                                  validator: (value) =>
+                                      EmailValidator.validateEmail(value),
                                 ),
                                 const SizedBox(height: 15),
 
@@ -482,7 +491,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   width: double.infinity,
                                   height: 50,
                                   child: ElevatedButton(
-                                    onPressed: _isLoading ? null : _handleRegister,
+                                    onPressed: _isLoading
+                                        ? null
+                                        : _handleRegister,
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF223199),
                                       disabledBackgroundColor: Colors.grey[300],
@@ -498,8 +509,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                             child: CircularProgressIndicator(
                                               valueColor:
                                                   AlwaysStoppedAnimation<Color>(
-                                                Colors.white,
-                                              ),
+                                                    Colors.white,
+                                                  ),
                                               strokeWidth: 2,
                                             ),
                                           )
@@ -508,7 +519,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                             style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
-                                              color: Colors.white, 
+                                              color: Colors.white,
                                               letterSpacing: 1,
                                             ),
                                           ),
@@ -523,11 +534,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     onTap: () {
                                       Navigator.of(context).push(
                                         MaterialPageRoute(
-                                          builder: (context) => const LoginScreen(),
+                                          builder: (context) =>
+                                              const LoginScreen(),
                                         ),
                                       );
                                     },
-                            
+
                                     child: RichText(
                                       text: const TextSpan(
                                         text: 'Sudah punya akun? ',

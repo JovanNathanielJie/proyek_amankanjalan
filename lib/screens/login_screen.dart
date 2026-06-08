@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:proyek_amankanjalan/services/firebase_service.dart';
 import 'package:proyek_amankanjalan/screens/main_navigation.dart';
 import 'package:proyek_amankanjalan/screens/register_screen.dart';
-import 'package:proyek_amankanjalan/screens/forgot_password_screen.dart';
 import 'package:proyek_amankanjalan/utils/email_validator.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -85,10 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF223199), 
-              Color(0xFF2563EB), 
-            ],
+            colors: [Color(0xFF223199), Color(0xFF2563EB)],
           ),
         ),
         child: SafeArea(
@@ -105,13 +101,21 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: 200,
                       fit: BoxFit.contain,
                       errorBuilder: (context, error, stackTrace) {
-                        return const Icon(Icons.shield, size: 80, color: Colors.white);
+                        return const Icon(
+                          Icons.shield,
+                          size: 80,
+                          color: Colors.white,
+                        );
                       },
                     ),
                     const SizedBox(height: 5),
                     const Text(
                       'Bersama Menjaga Keselamatan Jalan',
-                      style: TextStyle(fontSize: 12, color: Colors.white70, letterSpacing: 0.5),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white70,
+                        letterSpacing: 0.5,
+                      ),
                     ),
                     const SizedBox(height: 40),
                     Container(
@@ -119,7 +123,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 15, spreadRadius: 3),
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 15,
+                            spreadRadius: 3,
+                          ),
                         ],
                       ),
                       padding: const EdgeInsets.all(25),
@@ -130,12 +138,19 @@ class _LoginScreenState extends State<LoginScreen> {
                           children: [
                             Text(
                               'Masuk ke Akun',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _primaryBlue),
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: _primaryBlue,
+                              ),
                             ),
                             const SizedBox(height: 5),
                             const Text(
                               'Selamat datang kembali',
-                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                             ),
                             const SizedBox(height: 20),
                             TextFormField(
@@ -145,11 +160,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                 labelText: 'Email',
                                 hintText: 'Masukkan email',
                                 prefixIcon: const Icon(Icons.email_outlined),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                                 filled: true,
                                 fillColor: Colors.grey[50],
                               ),
-                              validator: (value) => EmailValidator.validateEmail(value),
+                              validator: (value) =>
+                                  EmailValidator.validateEmail(value),
                             ),
                             const SizedBox(height: 15),
                             TextFormField(
@@ -160,32 +178,28 @@ class _LoginScreenState extends State<LoginScreen> {
                                 hintText: 'Masukkan password',
                                 prefixIcon: const Icon(Icons.lock_outlined),
                                 suffixIcon: IconButton(
-                                  icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_outlined
+                                        : Icons.visibility_off_outlined,
+                                  ),
+                                  onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword,
+                                  ),
                                 ),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                                 filled: true,
                                 fillColor: Colors.grey[50],
                               ),
                               validator: (value) {
-                                if (value == null || value.isEmpty) return 'Password tidak boleh kosong';
-                                if (value.length < 6) return 'Password minimal 6 karakter';
+                                if (value == null || value.isEmpty)
+                                  return 'Password tidak boleh kosong';
+                                if (value.length < 6)
+                                  return 'Password minimal 6 karakter';
                                 return null;
                               },
-                            ),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
-                                  );
-                                },
-                                child: Text(
-                                  'Lupa Password?',
-                                  style: TextStyle(color: _primaryBlue, fontSize: 12, fontWeight: FontWeight.w600),
-                                ),
-                              ),
                             ),
                             const SizedBox(height: 20),
                             SizedBox(
@@ -194,16 +208,32 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: ElevatedButton(
                                 onPressed: _isLoading ? null : _handleLogin,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: _primaryBlue, 
+                                  backgroundColor: _primaryBlue,
                                   disabledBackgroundColor: Colors.grey,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
                                 ),
                                 child: _isLoading
                                     ? const SizedBox(
-                                        height: 20, width: 20,
-                                        child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.white), strokeWidth: 2),
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Colors.white,
+                                              ),
+                                          strokeWidth: 2,
+                                        ),
                                       )
-                                    : const Text('Masuk', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                                    : const Text(
+                                        'Masuk',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
                               ),
                             ),
                             const SizedBox(height: 15),
@@ -211,17 +241,26 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: GestureDetector(
                                 onTap: () {
                                   Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const RegisterScreen(),
+                                    ),
                                   );
                                 },
                                 child: RichText(
                                   text: TextSpan(
                                     text: 'Belum punya akun? ',
-                                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                    ),
                                     children: [
                                       TextSpan(
                                         text: 'Daftar Sekarang',
-                                        style: TextStyle(color: _primaryBlue, fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                          color: _primaryBlue,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -235,7 +274,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 30),
                     const Text(
                       'Laporkan untuk Keselamatan Bersama',
-                      style: TextStyle(fontSize: 11, color: Colors.white54, fontStyle: FontStyle.italic),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.white54,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                     const SizedBox(height: 20),
                   ],
