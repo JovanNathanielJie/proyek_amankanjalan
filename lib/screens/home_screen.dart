@@ -454,7 +454,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   const Icon(Icons.location_on_outlined, size: 14, color: Colors.grey),
                   const SizedBox(width: 4),
-                  Text(location, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  Expanded(
+                    child: Text(
+                      location,
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 8),

@@ -167,12 +167,12 @@ class _AddReportScreenState extends State<AddReportScreen> {
     String normalized = query.trim();
     normalized = normalized.replaceAll(RegExp(r'[.,;:]+'), ' ');
     normalized = normalized.replaceAll(RegExp(r'\s+'), ' ');
-    normalized = normalized.replaceAll(RegExp(r'(?i)\bjl\.?\b'), 'Jalan');
-    normalized = normalized.replaceAll(RegExp(r'(?i)\bjln\.?\b'), 'Jalan');
-    normalized = normalized.replaceAll(RegExp(r'(?i)\bgg\.?\b'), 'Gang');
-    normalized = normalized.replaceAll(RegExp(r'(?i)\bgang\.?\b'), 'Gang');
-    normalized = normalized.replaceAll(RegExp(r'(?i)\bkomp\.?\b'), 'Komplek');
-    normalized = normalized.replaceAll(RegExp(r'(?i)\bkomplek\b'), 'Komplek');
+    normalized = normalized.replaceAll(RegExp(r'\bjl\.?\b', caseSensitive: false), 'Jalan');
+    normalized = normalized.replaceAll(RegExp(r'\bjln\.?\b', caseSensitive: false), 'Jalan');
+    normalized = normalized.replaceAll(RegExp(r'\bgg\.?\b', caseSensitive: false), 'Gang');
+    normalized = normalized.replaceAll(RegExp(r'\bgang\.?\b', caseSensitive: false), 'Gang');
+    normalized = normalized.replaceAll(RegExp(r'\bkomp\.?\b', caseSensitive: false), 'Komplek');
+    normalized = normalized.replaceAll(RegExp(r'\bkomplek\b', caseSensitive: false), 'Komplek');
     normalized = normalized.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (!normalized.toLowerCase().contains('palembang')) {
       normalized = '$normalized, Palembang';
@@ -192,8 +192,8 @@ class _AddReportScreenState extends State<AddReportScreen> {
     final List<String> variants = [
       normalized,
       raw,
-      '${raw.replaceAll(RegExp(r'(?i)\bjl\.?\b|\bjln\.?\b'), 'Jalan').trim()}, Palembang',
-      '${raw.replaceAll(RegExp(r'(?i)\bjl\.?\b|\bjln\.?\b'), 'Jalan').trim()}, Palembang, Sumatera Selatan',
+      '${raw.replaceAll(RegExp(r'\bjl\.?\b|\bjln\.?\b', caseSensitive: false), 'Jalan').trim()}, Palembang',
+      '${raw.replaceAll(RegExp(r'\bjl\.?\b|\bjln\.?\b', caseSensitive: false), 'Jalan').trim()}, Palembang, Sumatera Selatan',
     ];
 
     final seen = <String>{};
@@ -207,33 +207,51 @@ class _AddReportScreenState extends State<AddReportScreen> {
     return uniqueVariants;
   }
 
+  // Bounding box untuk Palembang (dengan margin lebih lebar)
+  final double _minLat = -3.40;
+  final double _maxLat = -2.80;
+  final double _minLon = 104.50;
+  final double _maxLon = 104.95;
+
+  bool _isCoordinateInPalembang(double lat, double lon) {
+    return lat >= _minLat &&
+        lat <= _maxLat &&
+        lon >= _minLon &&
+        lon <= _maxLon;
+  }
+
   Future<List<Map<String, dynamic>>> _fetchNominatimSuggestions(
     String query,
   ) async {
     final uri = Uri.https('nominatim.openstreetmap.org', '/search', {
       'q': query,
       'format': 'json',
-      'viewbox': '104.54,-2.82,104.92,-3.36',
-      'bounded': '1',
-      'limit': '5',
+      'viewbox': '104.50,-3.40,104.95,-2.80',
+      'bounded': '0',
+      'limit': '10',
       'countrycodes': 'id',
       'addressdetails': '1',
     });
 
-    final response = await http
-        .get(uri, headers: {'User-Agent': 'AmankanJalanApp/1.0'})
-        .timeout(const Duration(seconds: 5));
+    try {
+      final response = await http
+          .get(uri, headers: {'User-Agent': 'AmankanJalanApp/1.0'})
+          .timeout(const Duration(seconds: 8));
 
-    if (response.statusCode != 200) return const [];
+      if (response.statusCode != 200) return const [];
 
-    final List data = json.decode(response.body) as List;
-    return data.map<Map<String, dynamic>>((e) {
-      return {
-        'display_name': e['display_name'],
-        'lat': double.parse(e['lat'].toString()),
-        'lon': double.parse(e['lon'].toString()),
-      };
-    }).toList();
+      final List data = json.decode(response.body) as List;
+      return data.map<Map<String, dynamic>>((e) {
+        return {
+          'display_name': e['display_name'],
+          'lat': double.parse(e['lat'].toString()),
+          'lon': double.parse(e['lon'].toString()),
+        };
+      }).toList();
+    } catch (e) {
+      debugPrint("Nominatim API error: $e");
+      return const [];
+    }
   }
 
   // --- FUNGSI AUTOCOMPLETE MENGAMBIL DATA DARI OPENSTREETMAP ---
@@ -254,21 +272,30 @@ class _AddReportScreenState extends State<AddReportScreen> {
 
     try {
       final results = <Map<String, dynamic>>[];
+      
       for (final variant in _buildQueryVariants(query)) {
         final fetched = await _fetchNominatimSuggestions(variant);
+        
         for (final item in fetched) {
-          final displayName = (item['display_name'] as String).toLowerCase();
-          if (!displayName.contains('palembang')) {
+          final lat = item['lat'] as double;
+          final lon = item['lon'] as double;
+          
+          // Validasi: koordinat harus berada di dalam Palembang bounding box
+          if (!_isCoordinateInPalembang(lat, lon)) {
             continue;
           }
+          
           final alreadyExists = results.any(
             (existing) => existing['display_name'] == item['display_name'],
           );
+          
           if (!alreadyExists) {
             results.add(item);
           }
         }
-        if (results.isNotEmpty) break;
+        
+        // Jika sudah ada hasil yang cukup, stop
+        if (results.length >= 5) break;
       }
 
       _suggestionCache[cacheKey] = results;
@@ -572,10 +599,33 @@ class _AddReportScreenState extends State<AddReportScreen> {
                       const SizedBox(height: 12),
 
                       _buildLabel('Judul Laporan *'),
-                      _buildRequiredFormField(
+                      TextFormField(
                         controller: _titleController,
-                        hint: 'Contoh: Lampu mati di...',
-                        errorMessage: 'Judul tidak boleh kosong',
+                        minLines: 1,
+                        maxLength: 100,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Judul tidak boleh kosong';
+                          }
+                          if (value.trim().length < 5) {
+                            return 'Judul minimal 5 karakter';
+                          }
+                          return null;
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Contoh: Lampu mati di...',
+                          hintStyle: TextStyle(
+                            color: Colors.grey.shade400,
+                            fontSize: 14,
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFFF8F9FA),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          counterText: '',
+                        ),
                       ),
                       const SizedBox(height: 16),
 
@@ -584,10 +634,15 @@ class _AddReportScreenState extends State<AddReportScreen> {
                         controller: _descController,
                         maxLength: 400,
                         maxLines: 4,
-                        validator: (value) =>
-                            value == null || value.trim().isEmpty
-                            ? 'Deskripsi tidak boleh kosong'
-                            : null,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Deskripsi tidak boleh kosong';
+                          }
+                          if (value.trim().length < 10) {
+                            return 'Deskripsi minimal 10 karakter';
+                          }
+                          return null;
+                        },
                         decoration: InputDecoration(
                           hintText: 'Jelaskan kondisi...',
                           hintStyle: TextStyle(
