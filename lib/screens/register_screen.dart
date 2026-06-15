@@ -394,7 +394,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   obscureText: _obscurePassword,
                                   decoration: InputDecoration(
                                     labelText: 'Password',
-                                    hintText: 'Masukkan password',
+                                    hintText:
+                                        'Masukkan password minimal 6 karakter',
+                                    helperText:
+                                        'Gunakan minimal 6 karakter agar bisa lanjut daftar.',
+                                    helperStyle: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 11,
+                                    ),
                                     prefixIcon: const Icon(Icons.lock_outlined),
                                     suffixIcon: IconButton(
                                       icon: Icon(

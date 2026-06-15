@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -5,7 +7,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'dart:math';
 
 import 'edit_profile_screen.dart';
-import 'login_screen.dart'; 
+import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -22,7 +24,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<bool?> _showLogoutDialog() {
     return showDialog<bool>(
       context: context,
-      barrierDismissible: true, 
+      barrierDismissible: true,
       builder: (BuildContext context) {
         return Dialog(
           shape: RoundedRectangleBorder(
@@ -59,25 +61,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: ElevatedButton(
                         onPressed: () => Navigator.pop(context, false),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE6E6FA), 
+                          backgroundColor: const Color(0xFFE6E6FA),
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                        child: const Text('Batal', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+                        child: const Text(
+                          'Batal',
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () => Navigator.pop(context, true),
-                        icon: const Icon(Icons.logout, color: Colors.white, size: 18),
-                        label: const Text('Keluar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        icon: const Icon(
+                          Icons.logout,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                        label: const Text(
+                          'Keluar',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFD32F2F), 
+                          backgroundColor: const Color(0xFFD32F2F),
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
@@ -103,11 +125,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               const Icon(Icons.account_circle, size: 80, color: Colors.grey),
               const SizedBox(height: 16),
-              const Text('Anda belum masuk akun', style: TextStyle(fontSize: 18, color: Colors.grey)),
+              const Text(
+                'Anda belum masuk akun',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LoginScreen(),
+                    ),
+                  );
                 },
                 child: const Text('Login Sekarang'),
               ),
@@ -121,7 +151,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: const Color(0xFFF0F0F5),
       // 1. STREAM BUILDER PERTAMA: MENDENGARKAN DATA USER DARI REALTIME DATABASE SECARA OTOMATIS
       body: StreamBuilder<DatabaseEvent>(
-        stream: FirebaseDatabase.instance.ref('users/${currentUser!.uid}').onValue,
+        stream: FirebaseDatabase.instance
+            .ref('users/${currentUser!.uid}')
+            .onValue,
         builder: (context, userSnapshot) {
           if (userSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -129,18 +161,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           // Ekstrak data user dari Realtime Database
           Map<dynamic, dynamic>? userData;
-          if (userSnapshot.hasData && userSnapshot.data!.snapshot.value != null) {
-            userData = userSnapshot.data!.snapshot.value as Map<dynamic, dynamic>;
+          if (userSnapshot.hasData &&
+              userSnapshot.data!.snapshot.value != null) {
+            userData =
+                userSnapshot.data!.snapshot.value as Map<dynamic, dynamic>;
           }
 
           // Nilai default jika data kosong (Fallback)
           String fullName = userData?['fullName'] ?? 'Pengguna';
           String username = userData?['username'] ?? 'username';
           String phoneNumber = userData?['phoneNumber'] ?? '-';
+          String? photoUrl = userData?['photoUrl'] as String?;
 
           // 2. STREAM BUILDER KEDUA: MENDENGARKAN DATA LAPORAN FIRESTORE
           return StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('reports').snapshots(),
+            stream: FirebaseFirestore.instance
+                .collection('reports')
+                .snapshots(),
             builder: (context, reportSnapshot) {
               if (reportSnapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -179,7 +216,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (data['status'] == 'Ditangani') {
                   totalDitangani++;
                 } else {
-                  totalAktif++; 
+                  totalAktif++;
                 }
 
                 if (upvotes > 50) hasTrending = true;
@@ -188,7 +225,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               bool badgePelaporAktif = totalLaporan >= 5;
               bool badgeTrending = hasTrending;
-              bool badgeGuardian = totalLaporan >= 1; 
+              bool badgeGuardian = totalLaporan >= 1;
               bool badgeTopReporter = hasTopReporter;
 
               return SafeArea(
@@ -196,21 +233,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     children: [
                       // Mengirimkan data dinamis ke komponen Header
-                      _buildHeader(context, fullName, username, phoneNumber),
+                      _buildHeader(
+                        context,
+                        fullName,
+                        username,
+                        phoneNumber,
+                        photoUrl,
+                      ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             const SizedBox(height: 16),
-                            _buildStatsGrid(totalLaporan, totalUpvoteDiterima, totalDitangani, totalAktif),
+                            _buildStatsGrid(
+                              totalLaporan,
+                              totalUpvoteDiterima,
+                              totalDitangani,
+                              totalAktif,
+                            ),
                             const SizedBox(height: 16),
-                            _buildAchievements(badgePelaporAktif, badgeTrending, badgeGuardian, badgeTopReporter),
+                            _buildAchievements(
+                              badgePelaporAktif,
+                              badgeTrending,
+                              badgeGuardian,
+                              badgeTopReporter,
+                            ),
                             const SizedBox(height: 16),
                             _buildRecentReports(myReports),
                             const SizedBox(height: 16),
                             // Mengirimkan username ke seksi Akun
-                            _buildAccountSection(context, username), 
+                            _buildAccountSection(context, username),
                             const SizedBox(height: 16),
                             _buildEmergencyInfo(),
                             const SizedBox(height: 32),
@@ -229,25 +282,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // --- KOMPONEN HEADER YANG DIUPDATE ---
-  Widget _buildHeader(BuildContext context, String fullName, String username, String phoneNumber) {
+  Widget _buildHeader(
+    BuildContext context,
+    String fullName,
+    String username,
+    String phoneNumber,
+    String? photoUrl,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 32),
-      decoration: const BoxDecoration(
-        color: Color(0xFF1E1E96),
-      ),
+      decoration: const BoxDecoration(color: Color(0xFF1E1E96)),
       child: Column(
         children: [
-          const CircleAvatar(
-            radius: 40,
-            backgroundColor: Colors.white,
-            child: Icon(Icons.person, size: 40, color: Color(0xFF1E1E96)),
-          ),
+          _buildProfileAvatar(photoUrl),
           const SizedBox(height: 16),
           // Menampilkan Nama Lengkap yang Asli
           Text(
             fullName,
-            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 4),
           const Text(
@@ -266,7 +323,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: const [
                 Icon(Icons.shield, color: Colors.orange, size: 16),
                 SizedBox(width: 6),
-                Text('Guardian Level 3', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+                Text(
+                  'Guardian Level 3',
+                  style: TextStyle(
+                    color: Colors.orange,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
           ),
@@ -281,20 +344,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     currentFullName: fullName,
                     currentUsername: username,
                     currentPhoneNumber: phoneNumber,
+                    currentPhotoUrl: photoUrl,
                   ),
                 ),
               );
             },
             icon: const Icon(Icons.edit, color: Colors.white, size: 16),
-            label: const Text('Edit Profil', style: TextStyle(color: Colors.white)),
+            label: const Text(
+              'Edit Profil',
+              style: TextStyle(color: Colors.white),
+            ),
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: Colors.white54),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildProfileAvatar(String? photoUrl) {
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      try {
+        return CircleAvatar(
+          radius: 40,
+          backgroundColor: Colors.white,
+          backgroundImage: MemoryImage(base64Decode(photoUrl)),
+        );
+      } catch (_) {
+        // Gunakan avatar default jika data foto tidak valid.
+      }
+    }
+
+    return const CircleAvatar(
+      radius: 40,
+      backgroundColor: Colors.white,
+      child: Icon(Icons.person, size: 40, color: Color(0xFF1E1E96)),
     );
   }
 
@@ -307,20 +396,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
       mainAxisSpacing: 12,
       childAspectRatio: 2.2,
       children: [
-        _buildStatCard(laporan.toString(), 'Total Laporan', Icons.description_outlined, Colors.purple),
-        _buildStatCard(upvotes.toString(), 'Upvote Diterima', Icons.arrow_upward, Colors.teal),
-        _buildStatCard(ditangani.toString(), 'Ditangani', Icons.check_circle_outline, Colors.orange),
-        _buildStatCard(aktif.toString(), 'Aktif', Icons.error_outline, Colors.red),
+        _buildStatCard(
+          laporan.toString(),
+          'Total Laporan',
+          Icons.description_outlined,
+          Colors.purple,
+        ),
+        _buildStatCard(
+          upvotes.toString(),
+          'Upvote Diterima',
+          Icons.arrow_upward,
+          Colors.teal,
+        ),
+        _buildStatCard(
+          ditangani.toString(),
+          'Ditangani',
+          Icons.check_circle_outline,
+          Colors.orange,
+        ),
+        _buildStatCard(
+          aktif.toString(),
+          'Aktif',
+          Icons.error_outline,
+          Colors.red,
+        ),
       ],
     );
   }
 
-  Widget _buildStatCard(String value, String label, IconData icon, Color iconColor) {
+  Widget _buildStatCard(
+    String value,
+    String label,
+    IconData icon,
+    Color iconColor,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -334,14 +454,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Icon(icon, color: iconColor, size: 20),
           ),
           const SizedBox(height: 8),
-          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
           Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
         ],
       ),
     );
   }
 
-  Widget _buildAchievements(bool pelaporAktif, bool trending, bool guardian, bool topReporter) {
+  Widget _buildAchievements(
+    bool pelaporAktif,
+    bool trending,
+    bool guardian,
+    bool topReporter,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -351,7 +479,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Pencapaian', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'Pencapaian',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 16),
           GridView.count(
             shrinkWrap: true,
@@ -361,10 +492,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisSpacing: 12,
             childAspectRatio: 1.8,
             children: [
-              _buildBadgeCard('Pelapor Aktif', '5+ laporan', Icons.flag, pelaporAktif),
-              _buildBadgeCard('Trending', 'Laporan viral', Icons.trending_up, trending),
-              _buildBadgeCard('Guardian', 'Jaga keamanan', Icons.shield, guardian),
-              _buildBadgeCard('Top Reporter', 'Laporan terbaik', Icons.star, topReporter),
+              _buildBadgeCard(
+                'Pelapor Aktif',
+                '5+ laporan',
+                Icons.flag,
+                pelaporAktif,
+              ),
+              _buildBadgeCard(
+                'Trending',
+                'Laporan viral',
+                Icons.trending_up,
+                trending,
+              ),
+              _buildBadgeCard(
+                'Guardian',
+                'Jaga keamanan',
+                Icons.shield,
+                guardian,
+              ),
+              _buildBadgeCard(
+                'Top Reporter',
+                'Laporan terbaik',
+                Icons.star,
+                topReporter,
+              ),
             ],
           ),
         ],
@@ -372,28 +523,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildBadgeCard(String title, String subtitle, IconData icon, bool isAchieved) {
+  Widget _buildBadgeCard(
+    String title,
+    String subtitle,
+    IconData icon,
+    bool isAchieved,
+  ) {
     Color bgColor = isAchieved ? const Color(0xFFE6E6FA) : Colors.grey.shade100;
-    Color iconBgColor = isAchieved ? const Color(0xFF1E1E96) : Colors.grey.shade400;
+    Color iconBgColor = isAchieved
+        ? const Color(0xFF1E1E96)
+        : Colors.grey.shade400;
     Color textColor = isAchieved ? Colors.black87 : Colors.grey;
 
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isAchieved ? const Color(0xFF1E1E96).withOpacity(0.3) : Colors.transparent),
+        border: Border.all(
+          color: isAchieved
+              ? const Color(0xFF1E1E96).withOpacity(0.3)
+              : Colors.transparent,
+        ),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: iconBgColor, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: iconBgColor,
+              shape: BoxShape.circle,
+            ),
             child: Icon(icon, color: Colors.white, size: 20),
           ),
           const SizedBox(height: 8),
-          Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: textColor)),
-          Text(subtitle, style: TextStyle(fontSize: 11, color: textColor.withOpacity(0.7))),
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: textColor,
+            ),
+          ),
+          Text(
+            subtitle,
+            style: TextStyle(fontSize: 11, color: textColor.withOpacity(0.7)),
+          ),
         ],
       ),
     );
@@ -412,19 +587,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Laporan Terbaru Saya', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'Laporan Terbaru Saya',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 12),
           if (recentReports.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 16.0),
-              child: Center(child: Text('Belum ada laporan yang dibuat.', style: TextStyle(color: Colors.grey))),
+              child: Center(
+                child: Text(
+                  'Belum ada laporan yang dibuat.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
             )
           else
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: recentReports.length,
-              separatorBuilder: (context, index) => Divider(color: Colors.grey.shade200),
+              separatorBuilder: (context, index) =>
+                  Divider(color: Colors.grey.shade200),
               itemBuilder: (context, index) {
                 var data = recentReports[index].data() as Map<String, dynamic>;
                 String title = data['title'] ?? 'Tanpa Judul';
@@ -454,11 +638,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   contentPadding: EdgeInsets.zero,
                   leading: Container(
                     padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: catBg, borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(
+                      color: catBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     child: Icon(catIcon, color: catIconColor),
                   ),
-                  title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  subtitle: Text('$upvotes upvote • $status', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  title: Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '$upvotes upvote • $status',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
                 );
               },
             ),
@@ -478,10 +674,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Akun', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'Akun',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 4),
           // Menampilkan Username yang Asli
-          Text('@${username.toLowerCase()}', style: const TextStyle(color: Colors.grey)),
+          Text(
+            '@${username.toLowerCase()}',
+            style: const TextStyle(color: Colors.grey),
+          ),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
@@ -492,22 +694,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   await FirebaseAuth.instance.signOut();
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Anda telah berhasil keluar.')),
+                      const SnackBar(
+                        content: Text('Anda telah berhasil keluar.'),
+                      ),
                     );
                     // Pindah secara menyeluruh kembali ke Login Screen
                     Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const LoginScreen(),
+                      ),
                       (Route<dynamic> route) => false,
                     );
                   }
                 }
               },
               icon: const Icon(Icons.logout, color: Colors.deepOrange),
-              label: const Text('Keluar Akun', style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold)),
+              label: const Text(
+                'Keluar Akun',
+                style: TextStyle(
+                  color: Colors.deepOrange,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Colors.deepOrange),
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
             ),
           ),
@@ -526,11 +740,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Informasi Penting', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'Informasi Penting',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 12),
           _buildEmergencyTile(Icons.phone_in_talk, 'Polisi Lalu Lintas', '112'),
           Divider(color: Colors.grey.shade200),
-          _buildEmergencyTile(Icons.phone_in_talk, 'Damkar & Kedaruratan', '113'),
+          _buildEmergencyTile(
+            Icons.phone_in_talk,
+            'Damkar & Kedaruratan',
+            '113',
+          ),
           Divider(color: Colors.grey.shade200),
           _buildEmergencyTile(Icons.info_outline, 'BPJT (Jalan Tol)', '11000'),
         ],
@@ -557,7 +778,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
-              Text(number, style: const TextStyle(color: Color(0xFF1E1E96), fontWeight: FontWeight.bold)),
+              Text(
+                number,
+                style: const TextStyle(
+                  color: Color(0xFF1E1E96),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
         ],

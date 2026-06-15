@@ -175,7 +175,13 @@ class _LoginScreenState extends State<LoginScreen> {
                               obscureText: _obscurePassword,
                               decoration: InputDecoration(
                                 labelText: 'Password',
-                                hintText: 'Masukkan password',
+                                hintText: 'Masukkan password akun Anda',
+                                helperText:
+                                    'Gunakan password saat daftar, minimal 6 karakter.',
+                                helperStyle: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 11,
+                                ),
                                 prefixIcon: const Icon(Icons.lock_outlined),
                                 suffixIcon: IconButton(
                                   icon: Icon(

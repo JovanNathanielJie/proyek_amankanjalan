@@ -167,12 +167,30 @@ class _AddReportScreenState extends State<AddReportScreen> {
     String normalized = query.trim();
     normalized = normalized.replaceAll(RegExp(r'[.,;:]+'), ' ');
     normalized = normalized.replaceAll(RegExp(r'\s+'), ' ');
-    normalized = normalized.replaceAll(RegExp(r'\bjl\.?\b', caseSensitive: false), 'Jalan');
-    normalized = normalized.replaceAll(RegExp(r'\bjln\.?\b', caseSensitive: false), 'Jalan');
-    normalized = normalized.replaceAll(RegExp(r'\bgg\.?\b', caseSensitive: false), 'Gang');
-    normalized = normalized.replaceAll(RegExp(r'\bgang\.?\b', caseSensitive: false), 'Gang');
-    normalized = normalized.replaceAll(RegExp(r'\bkomp\.?\b', caseSensitive: false), 'Komplek');
-    normalized = normalized.replaceAll(RegExp(r'\bkomplek\b', caseSensitive: false), 'Komplek');
+    normalized = normalized.replaceAll(
+      RegExp(r'\bjl\.?\b', caseSensitive: false),
+      'Jalan',
+    );
+    normalized = normalized.replaceAll(
+      RegExp(r'\bjln\.?\b', caseSensitive: false),
+      'Jalan',
+    );
+    normalized = normalized.replaceAll(
+      RegExp(r'\bgg\.?\b', caseSensitive: false),
+      'Gang',
+    );
+    normalized = normalized.replaceAll(
+      RegExp(r'\bgang\.?\b', caseSensitive: false),
+      'Gang',
+    );
+    normalized = normalized.replaceAll(
+      RegExp(r'\bkomp\.?\b', caseSensitive: false),
+      'Komplek',
+    );
+    normalized = normalized.replaceAll(
+      RegExp(r'\bkomplek\b', caseSensitive: false),
+      'Komplek',
+    );
     normalized = normalized.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (!normalized.toLowerCase().contains('palembang')) {
       normalized = '$normalized, Palembang';
@@ -214,10 +232,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
   final double _maxLon = 104.95;
 
   bool _isCoordinateInPalembang(double lat, double lon) {
-    return lat >= _minLat &&
-        lat <= _maxLat &&
-        lon >= _minLon &&
-        lon <= _maxLon;
+    return lat >= _minLat && lat <= _maxLat && lon >= _minLon && lon <= _maxLon;
   }
 
   Future<List<Map<String, dynamic>>> _fetchNominatimSuggestions(
@@ -272,28 +287,28 @@ class _AddReportScreenState extends State<AddReportScreen> {
 
     try {
       final results = <Map<String, dynamic>>[];
-      
+
       for (final variant in _buildQueryVariants(query)) {
         final fetched = await _fetchNominatimSuggestions(variant);
-        
+
         for (final item in fetched) {
           final lat = item['lat'] as double;
           final lon = item['lon'] as double;
-          
+
           // Validasi: koordinat harus berada di dalam Palembang bounding box
           if (!_isCoordinateInPalembang(lat, lon)) {
             continue;
           }
-          
+
           final alreadyExists = results.any(
             (existing) => existing['display_name'] == item['display_name'],
           );
-          
+
           if (!alreadyExists) {
             results.add(item);
           }
         }
-        
+
         // Jika sudah ada hasil yang cukup, stop
         if (results.length >= 5) break;
       }
@@ -686,7 +701,8 @@ class _AddReportScreenState extends State<AddReportScreen> {
                               onFieldSubmitted: (_) =>
                                   _searchLocationFromText(),
                               decoration: InputDecoration(
-                                hintText: 'Ketik min. 3 huruf (Cth: Rajawali)',
+                                hintText:
+                                    'Contoh: Jl. Rajawali, Ilir Timur II, Palembang',
                                 hintStyle: TextStyle(
                                   color: Colors.grey.shade400,
                                   fontSize: 14,
@@ -806,7 +822,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
                       const Padding(
                         padding: EdgeInsets.only(top: 8.0, bottom: 12.0),
                         child: Text(
-                          '💡 Tips: Ketik alamat lalu pilih salah satu rekomendasi dropdown. Setelah dipilih, titik lokasi otomatis disimpan.',
+                          '💡 Cara isi alamat: ketik nama jalan, nama tempat, atau kecamatan minimal 3 huruf, lalu pilih salah satu saran yang muncul. Contoh: Jl. Rajawali, Ilir Timur II, Palembang.',
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey,
