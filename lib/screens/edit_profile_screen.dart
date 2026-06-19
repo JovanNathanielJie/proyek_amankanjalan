@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -25,6 +24,8 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
+  final _formKey = GlobalKey<FormState>();
+
   late TextEditingController _fullNameController;
   late TextEditingController _usernameController;
   late TextEditingController _phoneNumberController;
@@ -38,7 +39,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // Mengisi form dengan data saat ini yang dilempar dari ProfileScreen
     _fullNameController = TextEditingController(text: widget.currentFullName);
     _usernameController = TextEditingController(text: widget.currentUsername);
     _phoneNumberController = TextEditingController(
@@ -163,7 +163,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           backgroundImage: MemoryImage(bytes),
         );
       } catch (_) {
-        // Fallback ke ikon default bila data foto tidak valid.
       }
     }
 
@@ -175,7 +174,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
-    // Validasi form kosong
+    if (_formKey.currentState == null || !_formKey.currentState!.validate()) {
+      return;
+    }
+
     if (_fullNameController.text.trim().isEmpty ||
         _usernameController.text.trim().isEmpty ||
         _phoneNumberController.text.trim().isEmpty) {
@@ -190,11 +192,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     });
 
     try {
-      // Mendapatkan UID User yang sedang login
       User? currentUser = FirebaseAuth.instance.currentUser;
 
       if (currentUser != null) {
-        // Update data ke Firebase Realtime Database
         final Map<String, dynamic> updateData = {
           'fullName': _fullNameController.text.trim(),
           'username': _usernameController.text.trim(),
@@ -213,7 +213,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           Navigator.pop(
             context,
             true,
-          ); // Kembali dan kirim sinyal 'true' (sukses)
+          ); 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Profil berhasil diperbarui!'),
@@ -270,108 +270,146 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
               ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Stack(
-                    children: [
-                      _buildProfileAvatar(),
-                      if (_isPickingPhoto)
-                        const Positioned.fill(
-                          child: CircleAvatar(
-                            radius: 50,
-                            backgroundColor: Color(0x55000000),
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Stack(
+                      children: [
+                        _buildProfileAvatar(),
+                        if (_isPickingPhoto)
+                          const Positioned.fill(
+                            child: CircleAvatar(
+                              radius: 50,
+                              backgroundColor: Color(0x55000000),
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: InkWell(
+                            onTap: _showPhotoOptions,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF1E1E96),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt,
                                 color: Colors.white,
+                                size: 16,
                               ),
                             ),
                           ),
                         ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: InkWell(
-                          onTap: _showPhotoOptions,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF1E1E96),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.camera_alt,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  _buildLabel('Nama Lengkap'),
+                  _buildTextField(
+                    _fullNameController,
+                    'Masukkan nama lengkap',
+                    Icons.person_outline,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Nama lengkap tidak boleh kosong';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  _buildLabel('Username'),
+                  _buildTextField(
+                    _usernameController,
+                    'Masukkan username',
+                    Icons.alternate_email,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Username tidak boleh kosong';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  _buildLabel('Nomor Telepon'),
+                  _buildTextField(
+                    _phoneNumberController,
+                    'Masukkan nomor telepon',
+                    Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Nomor telepon tidak boleh kosong';
+                      }
+
+                      // Logika validasi nomor telepon yang lebih ketat
+                      // Jika baru mengetik 1 angka dan itu bukan '0', langsung error
+                      if (value.length == 1 && value != '0') {
+                        return 'Nomor telepon harus diawali dengan 08';
+                      }
+                      // Jika sudah mengetik 2 angka atau lebih dan bukan '08', langsung error
+                      if (value.length >= 2 && !value.startsWith('08')) {
+                        return 'Nomor telepon harus diawali dengan 08';
+                      }
+
+                      if (value.length < 10) {
+                        return 'Nomor telepon minimal 10 digit';
+                      }
+                      if (value.length > 13) {
+                        return 'Nomor telepon maksimal 13 digit';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 32),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _saveProfile,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E1E96),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                _buildLabel('Nama Lengkap'),
-                _buildTextField(
-                  _fullNameController,
-                  'Masukkan nama lengkap',
-                  Icons.person_outline,
-                ),
-                const SizedBox(height: 16),
-
-                _buildLabel('Username'),
-                _buildTextField(
-                  _usernameController,
-                  'Masukkan username',
-                  Icons.alternate_email,
-                ),
-                const SizedBox(height: 16),
-
-                _buildLabel('Nomor Telepon'),
-                _buildTextField(
-                  _phoneNumberController,
-                  'Masukkan nomor telepon',
-                  Icons.phone_outlined,
-                  keyboardType: TextInputType.phone,
-                ),
-                const SizedBox(height: 32),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _saveProfile,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E1E96),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Simpan Perubahan',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                     ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text(
-                            'Simpan Perubahan',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -397,10 +435,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     String hint,
     IconData icon, {
     TextInputType? keyboardType,
+    String? Function(String?)? validator,
   }) {
-    return TextField(
+    return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      validator: validator,
+      autovalidateMode: AutovalidateMode.onUserInteraction, 
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
@@ -410,6 +451,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.red, width: 1),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.red, width: 1.5),
         ),
       ),
     );

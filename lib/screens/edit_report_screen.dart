@@ -32,7 +32,6 @@ class _EditReportScreenState extends State<EditReportScreen> {
   @override
   void initState() {
     super.initState();
-    // Mengisi form dengan data lama
     _titleController = TextEditingController(text: widget.initialTitle);
     _descController = TextEditingController(text: widget.initialDesc);
     _locationController = TextEditingController(text: widget.initialLocation);
@@ -62,7 +61,6 @@ class _EditReportScreenState extends State<EditReportScreen> {
     });
 
     try {
-      // Deteksi ulang kategori berdasarkan teks baru
       String category = 'Umum';
       String textToLower = '${_titleController.text} ${_descController.text}'.toLowerCase();
       if (textToLower.contains('lampu') || textToLower.contains('penerangan')) {
@@ -73,19 +71,17 @@ class _EditReportScreenState extends State<EditReportScreen> {
         category = 'Area Gelap';
       }
 
-      // Update dokumen ke Firestore
       await FirebaseFirestore.instance.collection('reports').doc(widget.docId).update({
         'title': _titleController.text.trim(),
         'description': _descController.text.trim(),
         'location': _locationController.text.trim(),
         'urgency': _selectedUrgency,
         'category': category,
-        // Jika kamu memasukkan link ke kolom lokasi, kita bisa salin juga ke coordinates
         'coordinates': _locationController.text.trim(), 
       });
 
       if (mounted) {
-        Navigator.pop(context); // Kembali ke halaman detail
+        Navigator.pop(context); 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Laporan berhasil diperbarui!'), backgroundColor: Colors.green),
         );

@@ -3,10 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
-// Tambahan untuk Base64
 import 'dart:convert';
 import 'dart:typed_data';
-// Tambahan Import untuk Mini Map
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'edit_report_screen.dart'; 
@@ -97,7 +95,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
           String status = data['status'] ?? 'Aktif';
           String reporterId = data['reporterId'] ?? '';
           
-          String imageBase64 = data['imageUrl'] ?? ''; // Membaca data Base64
+          String imageBase64 = data['imageUrl'] ?? ''; 
           String reporterName = data['reporterName'] ?? 'Anonim';
           Timestamp? timestamp = data['timestamp'] as Timestamp?;
           String timeAgo = _getTimeAgo(timestamp);
@@ -118,7 +116,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // RENDER FOTO BASE64
                         if (imageBase64.isNotEmpty) ...[
                           _buildPhotoCard(imageBase64),
                           const SizedBox(height: 16),
@@ -129,7 +126,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                         _buildDescriptionCard(description),
                         const SizedBox(height: 16),
                         
-                        // Pass location (Alamat) dan coordinates (Koordinat murni)
                         _buildMapAndLocationCard(location, coordinates),
                         
                         const SizedBox(height: 16),
@@ -214,7 +210,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     );
   }
 
-  // LOGIKA BARU UNTUK MERENDER BASE64
   Widget _buildPhotoCard(String imageBase64) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
@@ -286,7 +281,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     );
   }
 
-  // KARTU LOKASI BARU YANG MENAMPILKAN MINI MAP & ALAMAT
+  // Untuk menampilkan peta mini dan alamat di satu kartu
   Widget _buildMapAndLocationCard(String locationText, String coordinatesStr) {
     LatLng? point = _parseCoordinates(coordinatesStr);
 
@@ -301,7 +296,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
             const Text('Titik Lokasi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
             
-            // TAMPILKAN MINI MAP JIKA KOORDINAT VALID
+            // Untuk menampilkan peta mini jika koordinat valid
             if (point != null) ...[
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -338,7 +333,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
               const SizedBox(height: 12),
             ],
 
-            // TAMPILKAN TEKS ALAMAT MANUSIA
+            // Untuk menampilkan alamat dengan ikon
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

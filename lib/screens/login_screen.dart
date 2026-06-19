@@ -47,7 +47,6 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (mounted) {
-        // PERBAIKAN: Arahkan ke MainNavigation agar tab bawah muncul
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const MainNavigation()),
         );

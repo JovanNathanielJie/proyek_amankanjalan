@@ -1,5 +1,4 @@
 import 'dart:ui' as ui;
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -203,7 +202,7 @@ class _MapScreenState extends State<MapScreen> {
                               bottom: 16,
                               right: 16,
                               child: FloatingActionButton(
-                                heroTag: "map_location_btn", // <-- INI SOLUSI ANTI FREEZE
+                                heroTag: "map_location_btn", 
                                 mini: true,
                                 backgroundColor: Colors.white,
                                 onPressed: _centerToUserLocation,

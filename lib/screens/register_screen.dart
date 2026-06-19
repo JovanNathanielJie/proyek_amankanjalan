@@ -227,7 +227,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 TextFormField(
                                   controller: _phoneNumberController,
                                   keyboardType: TextInputType.phone,
-                                  // TAMBAHAN: Memicu validasi setiap kali pengguna berinteraksi / mengetik
                                   autovalidateMode:
                                       AutovalidateMode.onUserInteraction,
                                   inputFormatters: [
@@ -278,7 +277,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       return 'Nomor telepon tidak boleh kosong';
                                     }
 
-                                    // --- LOGIKA VALIDASI REAL-TIME ---
+                                    // Logika validasi nomor telepon yang lebih ketat
                                     // Jika baru mengetik 1 angka dan itu bukan '0', langsung error
                                     if (value.length == 1 && value != '0') {
                                       return 'Nomor telepon harus diawali dengan 08';
@@ -288,7 +287,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         !value.startsWith('08')) {
                                       return 'Nomor telepon harus diawali dengan 08';
                                     }
-                                    // ---------------------------------
 
                                     if (value.length < 10) {
                                       return 'Nomor telepon minimal 10 digit';
@@ -493,7 +491,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ),
                                 const SizedBox(height: 30),
 
-                                // --- BAGIAN TOMBOL DAFTAR AKUN YANG DIUBAH ---
+                                // Tombol daftar akun
                                 SizedBox(
                                   width: double.infinity,
                                   height: 50,
@@ -532,7 +530,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           ),
                                   ),
                                 ),
-                                // ---------------------------------------------
                                 const SizedBox(height: 15),
 
                                 // Login Link

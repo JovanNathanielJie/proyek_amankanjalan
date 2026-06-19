@@ -21,8 +21,6 @@ class _AddReportScreenState extends State<AddReportScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
-
-  // Controller khusus untuk menyimpan teks alamat (disinkronkan dengan Autocomplete)
   final TextEditingController _locationController = TextEditingController();
 
   String _selectedUrgency = 'RENDAH';
@@ -225,7 +223,6 @@ class _AddReportScreenState extends State<AddReportScreen> {
     return uniqueVariants;
   }
 
-  // Bounding box untuk Palembang (dengan margin lebih lebar)
   final double _minLat = -3.40;
   final double _maxLat = -2.80;
   final double _minLon = 104.50;
@@ -269,7 +266,6 @@ class _AddReportScreenState extends State<AddReportScreen> {
     }
   }
 
-  // --- FUNGSI AUTOCOMPLETE MENGAMBIL DATA DARI OPENSTREETMAP ---
   Future<Iterable<Map<String, dynamic>>> _getPlaceSuggestions(
     String query,
   ) async {
@@ -295,7 +291,6 @@ class _AddReportScreenState extends State<AddReportScreen> {
           final lat = item['lat'] as double;
           final lon = item['lon'] as double;
 
-          // Validasi: koordinat harus berada di dalam Palembang bounding box
           if (!_isCoordinateInPalembang(lat, lon)) {
             continue;
           }
@@ -308,8 +303,6 @@ class _AddReportScreenState extends State<AddReportScreen> {
             results.add(item);
           }
         }
-
-        // Jika sudah ada hasil yang cukup, stop
         if (results.length >= 5) break;
       }
 
@@ -383,7 +376,6 @@ class _AddReportScreenState extends State<AddReportScreen> {
   Future<void> _submitReport() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Pastikan _locationController tidak kosong sebelum submit
     if (_locationController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -593,7 +585,6 @@ class _AddReportScreenState extends State<AddReportScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // --- DETAIL & LOKASI ---
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -865,7 +856,6 @@ class _AddReportScreenState extends State<AddReportScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // --- FOTO SECTION ---
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -876,7 +866,6 @@ class _AddReportScreenState extends State<AddReportScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // --- SUBMIT BUTTON ---
                 ElevatedButton.icon(
                   onPressed: _isLoading ? null : _submitReport,
                   icon: _isLoading

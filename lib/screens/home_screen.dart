@@ -32,36 +32,41 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(),
-              const SizedBox(height: 16),
-              _buildSummaryCards(),
-              const SizedBox(height: 16),
-              _buildFilterChips(),
-              const SizedBox(height: 16),
-              _buildRecentReportsHeader(),
-              _buildReportList(), 
-            ],
+    return PopScope(
+      canPop: false, 
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(),
+                const SizedBox(height: 16),
+                _buildSummaryCards(),
+                const SizedBox(height: 16),
+                _buildFilterChips(),
+                const SizedBox(height: 16),
+                _buildRecentReportsHeader(),
+                _buildReportList(), 
+              ],
+            ),
           ),
         ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AddReportScreen()),
+            );
+          },
+          backgroundColor: const Color(0xFF2A23C2),
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AddReportScreen()),
-          );
-        },
-        backgroundColor: const Color(0xFF2A23C2),
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-      // BOTTOM NAVIGATION SUDAH DIHAPUS DARI SINI
     );
   }
 
@@ -167,10 +172,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- FILTER URGENCY ---
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          // Gunakan AlwaysScrollableScrollPhysics agar tetap terasa ada scroll meski konten sedikit
           physics: const AlwaysScrollableScrollPhysics(), 
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
@@ -185,7 +188,6 @@ class _HomeScreenState extends State<HomeScreen> {
         
         const SizedBox(height: 16),
         
-        // --- LABEL KATEGORI ---
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),
           child: Text('Semua Kategori', 
@@ -194,11 +196,10 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 8),
         
-        // --- FILTER KATEGORI (HORIZONTAL SCROLL DENGAN SCROLLBAR) ---
         SizedBox(
-          height: 72, // lebih tinggi agar ada jarak antara chips dan scrollbar
+          height: 72, 
           child: Padding(
-            padding: const EdgeInsets.only(bottom: 6), // beri ruang di bawah
+            padding: const EdgeInsets.only(bottom: 6), 
             child: Scrollbar(
               controller: _categoryScrollController,
               thumbVisibility: true,
@@ -211,46 +212,46 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 itemCount: _allCategories.length,
                 separatorBuilder: (context, index) => const SizedBox(width: 12),
-              itemBuilder: (context, index) {
-                final category = _allCategories[index];
-                final isSelected = _selectedCategory == category['name'];
+                itemBuilder: (context, index) {
+                  final category = _allCategories[index];
+                  final isSelected = _selectedCategory == category['name'];
 
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedCategory = category['name']),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF2A23C2) : Colors.white,
-                      border: Border.all(
-                        color: isSelected ? const Color(0xFF2A23C2) : Colors.grey.shade300,
-                        width: 1.5,
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedCategory = category['name']),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFF2A23C2) : Colors.white,
+                        border: Border.all(
+                          color: isSelected ? const Color(0xFF2A23C2) : Colors.grey.shade300,
+                          width: 1.5,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Center(
-                      child: Row(
-                        children: [
-                          if (category['icon'] != null) ...[
-                            Icon(category['icon'], size: 14, color: isSelected ? Colors.white : Colors.orange),
-                            const SizedBox(width: 6),
-                          ],
-                          Text(
-                            category['name'],
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: isSelected ? Colors.white : Colors.black87,
+                      child: Center(
+                        child: Row(
+                          children: [
+                            if (category['icon'] != null) ...[
+                              Icon(category['icon'], size: 14, color: isSelected ? Colors.white : Colors.orange),
+                              const SizedBox(width: 6),
+                            ],
+                            Text(
+                              category['name'],
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: isSelected ? Colors.white : Colors.black87,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
-        ),
         ),
       ],
     );
@@ -361,7 +362,6 @@ class _HomeScreenState extends State<HomeScreen> {
             Color catBgColor = Colors.grey.shade100;
             Color catTextColor = Colors.grey.shade800;
             
-            // Styling untuk setiap kategori
             if (data['category'] == 'Rawan Kecelakaan') {
               catBgColor = Colors.red.shade100;
               catTextColor = Colors.red;
@@ -479,7 +479,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   Row(
                     children: [
-                      // Tombol Bagikan
                       InkWell(
                         onTap: () {
                           _shareReport(title, category, urgency, location, description);
@@ -498,7 +497,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Tombol Upvote
                       InkWell(
                         onTap: () {
                           FirebaseFirestore.instance.collection('reports').doc(docId).update({'upvotes': FieldValue.increment(1)});
@@ -527,7 +525,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Fungsi untuk membagikan laporan
   Future<void> _shareReport(String title, String category, String urgency, String location, String description) async {
     final String shareMessage = '''🚨 Laporan AmankanJalan
 

@@ -1,11 +1,9 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'dart:math';
-
 import 'edit_profile_screen.dart';
 import 'login_screen.dart';
 
@@ -17,10 +15,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  // Mengambil instance user yang sedang login dari Firebase Auth
   final User? currentUser = FirebaseAuth.instance.currentUser;
 
-  // --- FUNGSI UNTUK MENAMPILKAN DIALOG KONFIRMASI KELUAR ---
   Future<bool?> _showLogoutDialog() {
     return showDialog<bool>(
       context: context,
@@ -115,7 +111,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Jika user belum login, tampilkan tombol untuk ke halaman login
     if (currentUser == null) {
       return Scaffold(
         backgroundColor: const Color(0xFFF0F0F5),
@@ -149,7 +144,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F0F5),
-      // 1. STREAM BUILDER PERTAMA: MENDENGARKAN DATA USER DARI REALTIME DATABASE SECARA OTOMATIS
       body: StreamBuilder<DatabaseEvent>(
         stream: FirebaseDatabase.instance
             .ref('users/${currentUser!.uid}')
@@ -158,8 +152,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (userSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-
-          // Ekstrak data user dari Realtime Database
           Map<dynamic, dynamic>? userData;
           if (userSnapshot.hasData &&
               userSnapshot.data!.snapshot.value != null) {
@@ -173,7 +165,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           String phoneNumber = userData?['phoneNumber'] ?? '-';
           String? photoUrl = userData?['photoUrl'] as String?;
 
-          // 2. STREAM BUILDER KEDUA: MENDENGARKAN DATA LAPORAN FIRESTORE
           return StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('reports')
@@ -187,7 +178,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (reportSnapshot.hasData) {
                 myReports = reportSnapshot.data!.docs.where((doc) {
                   var data = doc.data() as Map<String, dynamic>;
-                  // Filter laporan berdasarkan UID user yang sedang login
                   return data['reporterId'] == currentUser!.uid;
                 }).toList();
               }
@@ -232,7 +222,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      // Mengirimkan data dinamis ke komponen Header
                       _buildHeader(
                         context,
                         fullName,
@@ -262,7 +251,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             const SizedBox(height: 16),
                             _buildRecentReports(myReports),
                             const SizedBox(height: 16),
-                            // Mengirimkan username ke seksi Akun
                             _buildAccountSection(context, username),
                             const SizedBox(height: 16),
                             _buildEmergencyInfo(),
@@ -281,7 +269,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // --- KOMPONEN HEADER YANG DIUPDATE ---
   Widget _buildHeader(
     BuildContext context,
     String fullName,
@@ -297,7 +284,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           _buildProfileAvatar(photoUrl),
           const SizedBox(height: 16),
-          // Menampilkan Nama Lengkap yang Asli
           Text(
             fullName,
             style: const TextStyle(
@@ -336,7 +322,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: () {
-              // Melempar data yang asli ke halaman Edit Profile
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -376,7 +361,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           backgroundImage: MemoryImage(base64Decode(photoUrl)),
         );
       } catch (_) {
-        // Gunakan avatar default jika data foto tidak valid.
       }
     }
 
@@ -663,7 +647,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // --- SEKSI AKUN YANG DIUPDATE ---
   Widget _buildAccountSection(BuildContext context, String username) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -679,7 +662,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-          // Menampilkan Username yang Asli
           Text(
             '@${username.toLowerCase()}',
             style: const TextStyle(color: Colors.grey),
@@ -698,7 +680,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         content: Text('Anda telah berhasil keluar.'),
                       ),
                     );
-                    // Pindah secara menyeluruh kembali ke Login Screen
                     Navigator.of(context).pushAndRemoveUntil(
                       MaterialPageRoute(
                         builder: (context) => const LoginScreen(),
